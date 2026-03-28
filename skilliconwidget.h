@@ -23,6 +23,8 @@ public:
     ~SkillIconWidget() override = default;
 
     void setFrames(const QVector<QString> &resourcePaths);
+    void setCooldownState(qreal remainingMs, qreal totalMs);
+    void setClickHandler(std::function<void()> handler);
     void setDragStartedHandler(std::function<void()> handler);
     void setDragMovedHandler(std::function<void(const QPoint &)> handler);
     void setDragReleasedHandler(std::function<void(const QPoint &)> handler);
@@ -45,6 +47,9 @@ private:
     bool m_playing = false;
     QPoint m_pressGlobalPos;
     bool m_dragging = false;
+    qreal m_cooldownRemainingMs = 0.0;
+    qreal m_cooldownTotalMs = 0.0;
+    std::function<void()> m_clickHandler;
     std::function<void()> m_dragStartedHandler;
     std::function<void(const QPoint &)> m_dragMovedHandler;
     std::function<void(const QPoint &)> m_dragReleasedHandler;

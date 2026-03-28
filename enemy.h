@@ -23,6 +23,8 @@ public:
 
     void updateToward(const QPointF &targetPos);
     void paint(QPainter &painter) const;
+    int attackDamage() const;
+    bool tryAttackTarget(const QPointF &targetPos, qreal deltaMs);
 
     // 供碰撞检测使用：返回敌人的包围盒（与绘制的 bodyRect 对齐）
     QRectF boundingRect() const;
@@ -51,6 +53,7 @@ private:
 
     int m_maxHp = 100;
     int m_hp = 100;
+    qreal m_attackCooldownMs = 0.0;
 
     QColor bodyColor() const;
     QColor accentColor() const;

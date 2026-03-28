@@ -10,14 +10,18 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fdiagnostics-color=never")
 
+file(GLOB_RECURSE PROJECT_RESOURCE_FILES CONFIGURE_DEPENDS
+    "${CMAKE_CURRENT_SOURCE_DIR}/res/*"
+)
+
 configure_file(
     ${CMAKE_CURRENT_SOURCE_DIR}/assetpaths.h.in
     ${CMAKE_CURRENT_BINARY_DIR}/generated/assetpaths.h
     @ONLY
 )
 
-find_package(QT NAMES Qt6 Qt5 REQUIRED COMPONENTS Widgets)
-find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Widgets)
+find_package(QT NAMES Qt6 Qt5 REQUIRED COMPONENTS Widgets Multimedia)
+find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Widgets Multimedia)
 
 set(PROJECT_SOURCES
         main.cpp
@@ -59,7 +63,16 @@ target_include_directories(honor-of-hero PRIVATE
     ${CMAKE_CURRENT_BINARY_DIR}/generated
 )
 
-target_link_libraries(honor-of-hero PRIVATE Qt${QT_VERSION_MAJOR}::Widgets)
+if(PROJECT_RESOURCE_FILES)
+    set_source_files_properties(${PROJECT_RESOURCE_FILES} PROPERTIES HEADER_FILE_ONLY TRUE)
+    target_sources(honor-of-hero PRIVATE ${PROJECT_RESOURCE_FILES})
+    source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}" PREFIX "Resources" FILES ${PROJECT_RESOURCE_FILES})
+endif()
+
+target_link_libraries(honor-of-hero PRIVATE
+    Qt${QT_VERSION_MAJOR}::Widgets
+    Qt${QT_VERSION_MAJOR}::Multimedia
+)
 
 # Qt for iOS sets MACOSX_BUNDLE_GUI_IDENTIFIER automatically since Qt 6.1.
 # If you are developing for iOS or macOS you should consider setting an

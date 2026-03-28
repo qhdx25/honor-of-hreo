@@ -3,3 +3,5 @@ build/
 .cursor/
 *.user
 *.autosave
+res/music.mp4
+res/startmusic.mp4
