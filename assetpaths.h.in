@@ -1,0 +1,6 @@
+#ifndef ASSETPATHS_H
+#define ASSETPATHS_H
+
+static const char *const kAssetDir = "@CMAKE_CURRENT_SOURCE_DIR@/res";
+
+#endif // ASSETPATHS_H
