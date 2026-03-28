@@ -8,6 +8,7 @@
 #include <QPointF>
 #include <QPixmap>
 #include <QSet>
+#include <QStringList>
 #include <QTimer>
 #include <QVector>
 
@@ -16,6 +17,8 @@
 class SkillIconWidget;
 class Bullet;
 class Enemy;
+class Crystal;
+class Tower;
 class QPainter;
 class QMediaPlayer;
 
@@ -48,11 +51,17 @@ private:
         qreal elapsed = 0.0;
     };
 
+    struct BulletWheelBurst {
+        QPointF center;
+        qreal elapsed = 0.0;
+    };
+
     void spawnEnemy();
     void updateBullets();
     void updateEnemies();
     void updateSkillCooldowns();
     void updateSkill2Effects();
+    void updateBulletWheelEffects();
     void beginSkillAim(SkillType skill);
     void updateSkillAim(SkillType skill, const QPoint &dragOffset);
     void releaseSkill(SkillType skill, const QPoint &dragOffset);
@@ -60,16 +69,25 @@ private:
     void castSkill1();
     void castSkill2();
     void castSkill3();
+    void castBulletWheel();
     void castFlash();
     void castTreatment();
     void updateFlashState();
     void updateHeroMovement();
     void updateHeroAnimation();
     void updateSkill3Effect();
+    void playSkillReadySound();
     void startGame();
+    void startDefeatSequence();
+    void advanceDefeatFrame();
+    void startVictorySequence();
+    void advanceVictoryFrame();
+    void returnToMainMenu();
+    void resetGameplayState();
     void setGameplayUiVisible(bool visible);
     QRect startButtonRect() const;
     void drawSkill2Effects(QPainter &painter) const;
+    void drawBulletWheelEffects(QPainter &painter) const;
     void drawSkillArrow(QPainter &painter) const;
     void drawFlashEffect(QPainter &painter) const;
     void drawHeroHealthBar(QPainter &painter) const;
@@ -86,19 +104,34 @@ private:
     SkillIconWidget *m_treatmentIcon = nullptr;
     QTimer *m_gameTimer = nullptr;
     QTimer *m_enemyTimer = nullptr;
+    QTimer *m_defeatFrameTimer = nullptr;
+    QTimer *m_victoryFrameTimer = nullptr;
     QMediaPlayer *m_menuBgmPlayer = nullptr;
     QMediaPlayer *m_bgmPlayer = nullptr;
+    QMediaPlayer *m_defeatAudioPlayer = nullptr;
+    QMediaPlayer *m_victoryAudioPlayer = nullptr;
+    QMediaPlayer *m_skill2HitPlayer = nullptr;
+    QMediaPlayer *m_heroVoicePlayer = nullptr;
+    QMediaPlayer *m_skill3VoicePlayer = nullptr;
+    QMediaPlayer *m_skillReadyPlayer = nullptr;
     hero *myHero = nullptr;
+    Crystal *m_crystal = nullptr;
+    QVector<Tower *> m_towers;
     QVector<Bullet *> m_bullets;
+    QVector<Bullet *> m_enemyBullets;
     QVector<Enemy *> m_enemies;
     QVector<Skill2Explosion> m_skill2Explosions;
+    QVector<BulletWheelBurst> m_bulletWheelBursts;
     QVector<Enemy *> m_skill3HitEnemies;
     QVector<QPixmap> m_heroMoveFrames;
     QSet<int> m_pressedMovementKeys;
     bool m_gameStarted = false;
+    bool m_defeatSequenceActive = false;
+    bool m_victorySequenceActive = false;
     SkillType m_activeSkill = SkillType::None;
     bool m_skillAiming = false;
     bool m_heroMoving = false;
+    bool m_heroFacingLeft = false;
     bool m_flashEffectActive = false;
     bool m_skill3Active = false;
     QPointF m_skillDirection = QPointF(1.0, 0.0);
@@ -115,14 +148,21 @@ private:
     qreal m_skillDragLength = 0.0;
     qreal m_heroMoveAnimationElapsed = 0.0;
     qreal m_heroMoveHoldElapsed = 0.0;
+    qreal m_heroVoiceCountdownMs = -1.0;
     qreal m_skill3Elapsed = 0.0;
     int m_heroMoveFrameIndex = 0;
+    int m_defeatFrameIndex = -1;
+    int m_victoryFrameIndex = -1;
     QPixmap m_heroIdlePixmap;
     QPixmap m_heroBloodPixmap;
+    QPixmap m_currentDefeatFrame;
+    QPixmap m_currentVictoryFrame;
     QPixmap m_mapPixmap;
     QPixmap m_startMenuPixmap;
     QPixmap m_startButtonPixmap;
     QPixmap m_skill3LaserPixmap;
+    QStringList m_defeatFramePaths;
+    QStringList m_victoryFramePaths;
 };
 
 #endif // MAINWINDOW_H

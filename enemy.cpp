@@ -17,7 +17,7 @@ QSize enemySizeForType(Enemy::Type type)
 {
     switch (type) {
     case Enemy::Type::Scout:// 侦察兵
-        return QSize(60, 60);
+        return QSize(92, 92);
     case Enemy::Type::Warrior:// 战士
         return QSize(84, 84);
     case Enemy::Type::Mage:// 法师

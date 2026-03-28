@@ -2,20 +2,38 @@
 
 #include "assetpaths.h"
 #include "bullet.h"
+#include "bullet3.h"
+#include "bullet4.h"
+#include "bullet5.h"
+#include "bullet6.h"
+#include "bullet7.h"
+#include "bullet8.h"
+#include "bullet9.h"
+#include "bullet10.h"
+#include "bullet11.h"
+#include "bullet12.h"
+#include "bullet13.h"
+#include "bullet14.h"
+#include "bullet15.h"
+#include "bullet16.h"
 #include "config.h"
+#include "crystal.h"
 #include "enemy.h"
 #include "skill2bullet.h"
 #include "skilliconwidget.h"
+#include "tower.h"
 
+#include <QDir>
 #include <QIcon>
-#include <QMediaPlayer>
 #include <QKeyEvent>
+#include <QMediaPlayer>
 #include <QPainter>
 #include <QPen>
 #include <QPixmap>
 #include <QPolygonF>
 #include <QRandomGenerator>
 #include <QTimer>
+#include <QUrl>
 #include <QBrush>
 #include <QString>
 #include <algorithm>
@@ -32,10 +50,12 @@ constexpr qreal kSkill3HitWidth = 120.0;
 constexpr int kSkill3Damage = 160;
 constexpr qreal kSkill1CooldownMs = 2000.0;
 constexpr qreal kSkill2CooldownMs = 5000.0;
-constexpr qreal kSkill3CooldownMs = 4000.0;
+constexpr qreal kSkill3CooldownMs = 16000.0;
 constexpr qreal kSkill2ExplosionDurationMs = 280.0;
 constexpr qreal kSkill2ExplosionMaxRadius = 110.0;
-constexpr qreal kHeroMoveFrameDurationMs = 110.0;
+constexpr qreal kBulletWheelBurstDurationMs = 360.0;
+constexpr qreal kBulletWheelBurstMaxRadius = 170.0;
+constexpr qreal kHeroMoveFrameDurationMs = 80.0;
 constexpr qreal kHeroMoveHoldDurationMs = 140.0;
 constexpr qreal kHeroMoveAcceleration = 0.22;
 constexpr qreal kHeroMoveBrake = 0.76;
@@ -51,10 +71,22 @@ constexpr qreal kFlashImpactMaxRadius = 86.0;
 constexpr qreal kTreatmentCooldownMs = 20000.0;
 constexpr int kTreatmentHealAmount = 220;
 constexpr qreal kMapDisplayScale = 0.36;
+constexpr int kDefeatAnimationFrameIntervalMs = 67;
+constexpr qreal kHeroVoiceInitialDelayMs = 10000.0;
+constexpr qreal kHeroVoiceRepeatDelayMs = 120000.0;
 
 QString assetPath(const QString &fileName)
 {
     return QString::fromUtf8(kAssetDir) + "/" + fileName;
+}
+
+QVector<QPointF> towerPositionsForWorld(int worldWidth, int worldHeight)
+{
+    return QVector<QPointF>{
+        QPointF(worldWidth * 0.49, worldHeight * 0.16),
+        QPointF(worldWidth * 0.66, worldHeight * 0.31),
+        QPointF(worldWidth * 0.93, worldHeight * 0.46)
+    };
 }
 
 QPointF normalized(const QPointF &vector)
@@ -139,18 +171,97 @@ MainWindow::MainWindow(QWidget *parent)
         m_bgmPlayer->play();
     });
 
+    m_defeatAudioPlayer = new QMediaPlayer(this);
+#if QT_VERSION_MAJOR >= 6
+    m_defeatAudioPlayer->setSource(QUrl::fromLocalFile(assetPath("defeat_audio.mp3")));
+#else
+    m_defeatAudioPlayer->setMedia(QUrl::fromLocalFile(assetPath("defeat_audio.mp3")));
+    m_defeatAudioPlayer->setVolume(100);
+#endif
+
+    m_skill2HitPlayer = new QMediaPlayer(this);
+#if QT_VERSION_MAJOR >= 6
+    m_skill2HitPlayer->setSource(QUrl::fromLocalFile(assetPath("secondmusic.mp3")));
+#else
+    m_skill2HitPlayer->setMedia(QUrl::fromLocalFile(assetPath("secondmusic.mp3")));
+    m_skill2HitPlayer->setVolume(90);
+#endif
+
+    m_heroVoicePlayer = new QMediaPlayer(this);
+#if QT_VERSION_MAJOR >= 6
+    m_heroVoicePlayer->setSource(QUrl::fromLocalFile(assetPath("heroword.mp3")));
+#else
+    m_heroVoicePlayer->setMedia(QUrl::fromLocalFile(assetPath("heroword.mp3")));
+    m_heroVoicePlayer->setVolume(100);
+#endif
+
+    m_skill3VoicePlayer = new QMediaPlayer(this);
+#if QT_VERSION_MAJOR >= 6
+    m_skill3VoicePlayer->setSource(QUrl::fromLocalFile(assetPath("heroword2.mp3")));
+#else
+    m_skill3VoicePlayer->setMedia(QUrl::fromLocalFile(assetPath("heroword2.mp3")));
+    m_skill3VoicePlayer->setVolume(100);
+#endif
+
+    m_skillReadyPlayer = new QMediaPlayer(this);
+#if QT_VERSION_MAJOR >= 6
+    m_skillReadyPlayer->setSource(QUrl::fromLocalFile(assetPath("ready_music.mp3")));
+#else
+    m_skillReadyPlayer->setMedia(QUrl::fromLocalFile(assetPath("ready_music.mp3")));
+    m_skillReadyPlayer->setVolume(95);
+#endif
+
+    const QDir defeatFrameDir(assetPath("defeat_frames"));
+    const QStringList defeatFrameNames = defeatFrameDir.entryList(QStringList() << "frame_*.jpg",
+                                                                 QDir::Files,
+                                                                 QDir::Name);
+    for (const QString &frameName : defeatFrameNames) {
+        m_defeatFramePaths.push_back(defeatFrameDir.absoluteFilePath(frameName));
+    }
+
+    m_defeatFrameTimer = new QTimer(this);
+    m_defeatFrameTimer->setInterval(kDefeatAnimationFrameIntervalMs);
+    QObject::connect(m_defeatFrameTimer, &QTimer::timeout, this, [this]() { advanceDefeatFrame(); });
+
+    m_victoryAudioPlayer = new QMediaPlayer(this);
+#if QT_VERSION_MAJOR >= 6
+    m_victoryAudioPlayer->setSource(QUrl::fromLocalFile(assetPath("victory_audio.mp3")));
+#else
+    m_victoryAudioPlayer->setMedia(QUrl::fromLocalFile(assetPath("victory_audio.mp3")));
+    m_victoryAudioPlayer->setVolume(100);
+#endif
+
+    const QDir victoryFrameDir(assetPath("victory_frames"));
+    const QStringList victoryFrameNames = victoryFrameDir.entryList(QStringList() << "frame_*.jpg",
+                                                                   QDir::Files,
+                                                                   QDir::Name);
+    for (const QString &frameName : victoryFrameNames) {
+        m_victoryFramePaths.push_back(victoryFrameDir.absoluteFilePath(frameName));
+    }
+
+    m_victoryFrameTimer = new QTimer(this);
+    m_victoryFrameTimer->setInterval(kDefeatAnimationFrameIntervalMs);
+    QObject::connect(m_victoryFrameTimer, &QTimer::timeout, this, [this]() { advanceVictoryFrame(); });
+
     m_enemyTimer = new QTimer(this);
     m_enemyTimer->setInterval(1800);
     QObject::connect(m_enemyTimer, &QTimer::timeout, this, [this]() { spawnEnemy(); });
 
     m_startMenuPixmap.load(assetPath("firstmenu.jpg"));
     m_startButtonPixmap.load(assetPath("startbutton.png"));
-    m_heroIdlePixmap.load(assetPath("test.png"));
+    m_heroIdlePixmap.load(assetPath("unmove.png"));
     m_heroBloodPixmap.load(assetPath("blood.png"));
     m_heroMoveFrames = QVector<QPixmap>{
-        QPixmap(assetPath("move1.png")),
-        QPixmap(assetPath("move2.png")),
-        QPixmap(assetPath("move3.png"))
+        QPixmap(assetPath("run1.png")),
+        QPixmap(assetPath("run2.png")),
+        QPixmap(assetPath("run3.png")),
+        QPixmap(assetPath("run4.png")),
+        QPixmap(assetPath("run5.png")),
+        QPixmap(assetPath("run6.png")),
+        QPixmap(assetPath("run7.png")),
+        QPixmap(assetPath("run8.png")),
+        QPixmap(assetPath("run9.png")),
+        QPixmap(assetPath("run10.png"))
     };
     const QPixmap rawMapPixmap(assetPath("hok_gorge_playfield_final_clean.png"));
     if (!rawMapPixmap.isNull()) {
@@ -163,6 +274,16 @@ MainWindow::MainWindow(QWidget *parent)
 
     if (!m_mapPixmap.isNull()) {
         myHero->setPosition(720, worldHeight() - 900);
+    }
+
+    m_crystal = new Crystal();
+    m_crystal->setCenter(QPointF(worldWidth() - 220.0, 190.0));
+    for (int i = 0; i < 3; ++i) {
+        m_towers.push_back(new Tower());
+    }
+    const QVector<QPointF> towerPositions = towerPositionsForWorld(worldWidth(), worldHeight());
+    for (int i = 0; i < m_towers.size() && i < towerPositions.size(); ++i) {
+        m_towers.at(i)->setCenter(towerPositions.at(i));
     }
 
     const QPoint skill1Pos(1675, 920);
@@ -265,11 +386,22 @@ MainWindow::~MainWindow()
     }
     m_bullets.clear();
 
+    for (Bullet *bullet : m_enemyBullets) {
+        delete bullet;
+    }
+    m_enemyBullets.clear();
+
     for (Enemy *enemy : m_enemies) {
         delete enemy;
     }
     m_enemies.clear();
 
+    for (Tower *tower : m_towers) {
+        delete tower;
+    }
+    m_towers.clear();
+
+    delete m_crystal;
     delete myHero;
 }
 
@@ -287,6 +419,24 @@ void MainWindow::paintEvent(QPaintEvent *event)
     Q_UNUSED(event);
 
     QPainter painter(this);
+
+    if (m_defeatSequenceActive) {
+        if (!m_currentDefeatFrame.isNull()) {
+            painter.drawPixmap(rect(), m_currentDefeatFrame);
+        } else {
+            painter.fillRect(rect(), Qt::black);
+        }
+        return;
+    }
+
+    if (m_victorySequenceActive) {
+        if (!m_currentVictoryFrame.isNull()) {
+            painter.drawPixmap(rect(), m_currentVictoryFrame);
+        } else {
+            painter.fillRect(rect(), Qt::black);
+        }
+        return;
+    }
 
     if (!m_gameStarted) {
         if (!m_startMenuPixmap.isNull()) {
@@ -338,7 +488,15 @@ void MainWindow::paintEvent(QPaintEvent *event)
         const int drawHeight = useMoveFrame ? kHeroMoveFrameHeight : HERO_HEIGHT;
         const int drawX = myHero->Hero_x - (drawWidth - HERO_WIDTH) / 2;
         const int drawY = myHero->Hero_y - (drawHeight - HERO_HEIGHT) / 2;
-        painter.drawPixmap(drawX, drawY, drawWidth, drawHeight, heroPix);
+        if (m_heroFacingLeft && !heroPix.isNull()) {
+            painter.save();
+            painter.translate(drawX + drawWidth, drawY);
+            painter.scale(-1.0, 1.0);
+            painter.drawPixmap(0, 0, drawWidth, drawHeight, heroPix);
+            painter.restore();
+        } else {
+            painter.drawPixmap(drawX, drawY, drawWidth, drawHeight, heroPix);
+        }
         drawHeroHealthBar(painter);
     }
 
@@ -350,12 +508,28 @@ void MainWindow::paintEvent(QPaintEvent *event)
         bullet->paint(painter);
     }
 
+    for (const Bullet *bullet : m_enemyBullets) {
+        bullet->paint(painter);
+    }
+
     for (const Enemy *enemy : m_enemies) {
         enemy->paint(painter);
     }
 
+    for (const Tower *tower : m_towers) {
+        tower->paint(painter);
+    }
+
+    if (m_crystal != nullptr) {
+        m_crystal->paint(painter);
+    }
+
     if (!m_skill2Explosions.isEmpty()) {
         drawSkill2Effects(painter);
+    }
+
+    if (!m_bulletWheelBursts.isEmpty()) {
+        drawBulletWheelEffects(painter);
     }
 
     if (m_skill3Active) {
@@ -367,7 +541,7 @@ void MainWindow::paintEvent(QPaintEvent *event)
 
 void MainWindow::keyPressEvent(QKeyEvent *event)
 {
-    if (!m_gameStarted) {
+    if (!m_gameStarted || m_defeatSequenceActive || m_victorySequenceActive) {
         QMainWindow::keyPressEvent(event);
         return;
     }
@@ -379,6 +553,11 @@ void MainWindow::keyPressEvent(QKeyEvent *event)
     case Qt::Key_D:
         m_pressedMovementKeys.insert(event->key());
         break;
+    case Qt::Key_E:
+        if (!event->isAutoRepeat()) {
+            castBulletWheel();
+        }
+        break;
     default:
         break;
     }
@@ -389,7 +568,7 @@ void MainWindow::keyPressEvent(QKeyEvent *event)
 
 void MainWindow::keyReleaseEvent(QKeyEvent *event)
 {
-    if (!m_gameStarted) {
+    if (!m_gameStarted || m_defeatSequenceActive || m_victorySequenceActive) {
         QMainWindow::keyReleaseEvent(event);
         return;
     }
@@ -421,6 +600,11 @@ void MainWindow::mousePressEvent(QMouseEvent *event)
         return;
     }
 
+    if (m_defeatSequenceActive || m_victorySequenceActive) {
+        QMainWindow::mousePressEvent(event);
+        return;
+    }
+
     if (event->button() == Qt::LeftButton && myHero != nullptr) {
         m_bullets.push_back(new Bullet(myHero->shootOrigin(), QPointF(event->pos()) + cameraOffset()));
         update();
@@ -441,10 +625,11 @@ void MainWindow::focusOutEvent(QFocusEvent *event)
 
 void MainWindow::startGame()
 {
-    if (m_gameStarted) {
+    if (m_defeatSequenceActive || m_victorySequenceActive) {
         return;
     }
 
+    resetGameplayState();
     m_gameStarted = true;
     setGameplayUiVisible(true);
     if (m_menuBgmPlayer != nullptr) {
@@ -460,7 +645,269 @@ void MainWindow::startGame()
         m_bgmPlayer->setPosition(0);
         m_bgmPlayer->play();
     }
+    m_heroVoiceCountdownMs = kHeroVoiceInitialDelayMs;
     setFocus();
+}
+
+void MainWindow::startDefeatSequence()
+{
+    if (!m_gameStarted || m_defeatSequenceActive) {
+        return;
+    }
+
+    m_defeatSequenceActive = true;
+    clearSkillAim();
+    setGameplayUiVisible(false);
+
+    if (m_gameTimer != nullptr) {
+        m_gameTimer->stop();
+    }
+    if (m_enemyTimer != nullptr) {
+        m_enemyTimer->stop();
+    }
+    if (m_bgmPlayer != nullptr) {
+        m_bgmPlayer->stop();
+    }
+    if (m_defeatAudioPlayer != nullptr) {
+        m_defeatAudioPlayer->setPosition(0);
+        m_defeatAudioPlayer->play();
+    }
+
+    if (m_defeatFramePaths.isEmpty()) {
+        returnToMainMenu();
+        return;
+    }
+
+    m_defeatFrameIndex = 0;
+    m_currentDefeatFrame.load(m_defeatFramePaths.at(m_defeatFrameIndex));
+    update();
+
+    if (m_defeatFrameTimer != nullptr && !m_defeatFrameTimer->isActive()) {
+        m_defeatFrameTimer->start();
+    }
+}
+
+void MainWindow::advanceDefeatFrame()
+{
+    if (!m_defeatSequenceActive) {
+        return;
+    }
+
+    ++m_defeatFrameIndex;
+    if (m_defeatFrameIndex >= m_defeatFramePaths.size()) {
+        if (m_defeatFrameTimer != nullptr) {
+            m_defeatFrameTimer->stop();
+        }
+        returnToMainMenu();
+        return;
+    }
+
+    m_currentDefeatFrame.load(m_defeatFramePaths.at(m_defeatFrameIndex));
+    update();
+}
+
+void MainWindow::startVictorySequence()
+{
+    if (!m_gameStarted || m_defeatSequenceActive || m_victorySequenceActive) {
+        return;
+    }
+
+    m_victorySequenceActive = true;
+    clearSkillAim();
+    setGameplayUiVisible(false);
+
+    if (m_gameTimer != nullptr) {
+        m_gameTimer->stop();
+    }
+    if (m_enemyTimer != nullptr) {
+        m_enemyTimer->stop();
+    }
+    if (m_bgmPlayer != nullptr) {
+        m_bgmPlayer->stop();
+    }
+    if (m_victoryAudioPlayer != nullptr) {
+        m_victoryAudioPlayer->setPosition(0);
+        m_victoryAudioPlayer->play();
+    }
+
+    if (m_victoryFramePaths.isEmpty()) {
+        returnToMainMenu();
+        return;
+    }
+
+    m_victoryFrameIndex = 0;
+    m_currentVictoryFrame.load(m_victoryFramePaths.at(m_victoryFrameIndex));
+    update();
+
+    if (m_victoryFrameTimer != nullptr && !m_victoryFrameTimer->isActive()) {
+        m_victoryFrameTimer->start();
+    }
+}
+
+void MainWindow::advanceVictoryFrame()
+{
+    if (!m_victorySequenceActive) {
+        return;
+    }
+
+    ++m_victoryFrameIndex;
+    if (m_victoryFrameIndex >= m_victoryFramePaths.size()) {
+        if (m_victoryFrameTimer != nullptr) {
+            m_victoryFrameTimer->stop();
+        }
+        returnToMainMenu();
+        return;
+    }
+
+    m_currentVictoryFrame.load(m_victoryFramePaths.at(m_victoryFrameIndex));
+    update();
+}
+
+void MainWindow::returnToMainMenu()
+{
+    if (m_defeatFrameTimer != nullptr) {
+        m_defeatFrameTimer->stop();
+    }
+    if (m_victoryFrameTimer != nullptr) {
+        m_victoryFrameTimer->stop();
+    }
+    if (m_defeatAudioPlayer != nullptr) {
+        m_defeatAudioPlayer->stop();
+    }
+    if (m_victoryAudioPlayer != nullptr) {
+        m_victoryAudioPlayer->stop();
+    }
+    if (m_skill2HitPlayer != nullptr) {
+        m_skill2HitPlayer->stop();
+    }
+    if (m_heroVoicePlayer != nullptr) {
+        m_heroVoicePlayer->stop();
+    }
+    if (m_skill3VoicePlayer != nullptr) {
+        m_skill3VoicePlayer->stop();
+    }
+    if (m_skillReadyPlayer != nullptr) {
+        m_skillReadyPlayer->stop();
+    }
+
+    resetGameplayState();
+    m_gameStarted = false;
+    m_defeatSequenceActive = false;
+    m_victorySequenceActive = false;
+    setGameplayUiVisible(false);
+
+    if (m_menuBgmPlayer != nullptr) {
+        m_menuBgmPlayer->setPosition(0);
+        m_menuBgmPlayer->play();
+    }
+    update();
+}
+
+void MainWindow::resetGameplayState()
+{
+    if (m_gameTimer != nullptr) {
+        m_gameTimer->stop();
+    }
+    if (m_enemyTimer != nullptr) {
+        m_enemyTimer->stop();
+    }
+    if (m_defeatFrameTimer != nullptr) {
+        m_defeatFrameTimer->stop();
+    }
+    if (m_victoryFrameTimer != nullptr) {
+        m_victoryFrameTimer->stop();
+    }
+    if (m_defeatAudioPlayer != nullptr) {
+        m_defeatAudioPlayer->stop();
+    }
+    if (m_victoryAudioPlayer != nullptr) {
+        m_victoryAudioPlayer->stop();
+    }
+    if (m_skill2HitPlayer != nullptr) {
+        m_skill2HitPlayer->stop();
+    }
+    if (m_heroVoicePlayer != nullptr) {
+        m_heroVoicePlayer->stop();
+    }
+    if (m_skill3VoicePlayer != nullptr) {
+        m_skill3VoicePlayer->stop();
+    }
+    if (m_skillReadyPlayer != nullptr) {
+        m_skillReadyPlayer->stop();
+    }
+
+    for (Bullet *bullet : m_bullets) {
+        delete bullet;
+    }
+    m_bullets.clear();
+
+    for (Bullet *bullet : m_enemyBullets) {
+        delete bullet;
+    }
+    m_enemyBullets.clear();
+
+    for (Enemy *enemy : m_enemies) {
+        delete enemy;
+    }
+    m_enemies.clear();
+
+    for (Tower *tower : m_towers) {
+        tower->reset();
+    }
+
+    m_skill2Explosions.clear();
+    m_bulletWheelBursts.clear();
+    m_skill3HitEnemies.clear();
+    m_pressedMovementKeys.clear();
+    m_activeSkill = SkillType::None;
+    m_skillAiming = false;
+    m_heroMoving = false;
+    m_flashEffectActive = false;
+    m_skill3Active = false;
+    m_skillDirection = QPointF(1.0, 0.0);
+    m_heroVelocity = QPointF(0.0, 0.0);
+    m_flashEffectStartPos = QPointF();
+    m_flashEffectEndPos = QPointF();
+    m_skill3BaseDirection = QPointF(1.0, 0.0);
+    m_skill1CooldownRemainingMs = 0.0;
+    m_skill2CooldownRemainingMs = 0.0;
+    m_skill3CooldownRemainingMs = 0.0;
+    m_flashCooldownRemainingMs = 0.0;
+    m_treatmentCooldownRemainingMs = 0.0;
+    m_flashEffectElapsed = 0.0;
+    m_skillDragLength = 0.0;
+    m_heroMoveAnimationElapsed = 0.0;
+    m_heroMoveHoldElapsed = 0.0;
+    m_heroVoiceCountdownMs = -1.0;
+    m_skill3Elapsed = 0.0;
+    m_heroMoveFrameIndex = 0;
+    m_defeatFrameIndex = -1;
+    m_victoryFrameIndex = -1;
+    m_currentDefeatFrame = QPixmap();
+    m_currentVictoryFrame = QPixmap();
+
+    if (myHero != nullptr) {
+        myHero->heal(myHero->maxHp());
+        if (!m_mapPixmap.isNull()) {
+            myHero->setPosition(720, worldHeight() - 900);
+        } else {
+            myHero->setPosition(100, 100);
+        }
+    }
+    if (m_crystal != nullptr) {
+        m_crystal->reset();
+        m_crystal->setCenter(QPointF(worldWidth() - 220.0, 190.0));
+    }
+    const QVector<QPointF> towerPositions = towerPositionsForWorld(worldWidth(), worldHeight());
+    for (int i = 0; i < m_towers.size() && i < towerPositions.size(); ++i) {
+        m_towers.at(i)->reset();
+        m_towers.at(i)->setCenter(towerPositions.at(i));
+    }
+
+    updateSkillCooldowns();
+    updateSkill2Effects();
+    updateBulletWheelEffects();
+    updateFlashState();
 }
 
 void MainWindow::setGameplayUiVisible(bool visible)
@@ -495,10 +942,42 @@ QRect MainWindow::startButtonRect() const
 
 void MainWindow::updateBullets()
 {
+    if (!m_gameStarted || m_defeatSequenceActive || m_victorySequenceActive) {
+        return;
+    }
+
     updateHeroMovement();
     updateSkillCooldowns();
     updateSkill2Effects();
+    updateBulletWheelEffects();
     updateFlashState();
+
+    if (m_heroVoiceCountdownMs > 0.0) {
+        m_heroVoiceCountdownMs -= m_gameTimer != nullptr ? m_gameTimer->interval() : 16.0;
+        if (m_heroVoiceCountdownMs <= 0.0) {
+            if (m_heroVoicePlayer != nullptr) {
+                m_heroVoicePlayer->stop();
+                m_heroVoicePlayer->setPosition(0);
+                m_heroVoicePlayer->play();
+            }
+            m_heroVoiceCountdownMs += kHeroVoiceRepeatDelayMs;
+        }
+    }
+
+    if (m_crystal != nullptr && myHero != nullptr) {
+        const qreal deltaMs = m_gameTimer != nullptr ? m_gameTimer->interval() : 16.0;
+        if (m_crystal->tryShootAt(heroCenter(), deltaMs)) {
+            m_enemyBullets.push_back(new Bullet3(m_crystal->shootOrigin(), heroCenter(), 14.0, 1800.0));
+        }
+    }
+    if (myHero != nullptr) {
+        const qreal deltaMs = m_gameTimer != nullptr ? m_gameTimer->interval() : 16.0;
+        for (Tower *tower : m_towers) {
+            if (tower != nullptr && tower->tryShootAt(heroCenter(), deltaMs)) {
+                m_enemyBullets.push_back(new Bullet4(tower->shootOrigin(), heroCenter(), 16.0, 1500.0));
+            }
+        }
+    }
 
     for (int i = m_bullets.size() - 1; i >= 0; --i) {
         Bullet *bullet = m_bullets.at(i);
@@ -513,6 +992,33 @@ void MainWindow::updateBullets()
         const QRectF bulletRect = bullet->boundingRect();
         bool bulletConsumed = false;
 
+        if (m_crystal != nullptr && !m_crystal->isDead() && bulletRect.intersects(m_crystal->boundingRect())) {
+            m_crystal->takeDamage(bullet->damage());
+            delete bullet;
+            m_bullets.removeAt(i);
+            if (m_crystal->isDead()) {
+                startVictorySequence();
+                return;
+            }
+            continue;
+        }
+
+        bool hitTower = false;
+        for (Tower *tower : m_towers) {
+            if (tower == nullptr || tower->isDead() || !bulletRect.intersects(tower->boundingRect())) {
+                continue;
+            }
+
+            tower->takeDamage(bullet->damage());
+            delete bullet;
+            m_bullets.removeAt(i);
+            hitTower = true;
+            break;
+        }
+        if (hitTower) {
+            continue;
+        }
+
         for (int e = m_enemies.size() - 1; e >= 0; --e) {
             Enemy *enemy = m_enemies.at(e);
             if (!bulletRect.intersects(enemy->boundingRect())) {
@@ -525,6 +1031,11 @@ void MainWindow::updateBullets()
                 Skill2Explosion explosion;
                 explosion.center = bulletRect.center();
                 m_skill2Explosions.push_back(explosion);
+                if (m_skill2HitPlayer != nullptr) {
+                    m_skill2HitPlayer->stop();
+                    m_skill2HitPlayer->setPosition(0);
+                    m_skill2HitPlayer->play();
+                }
             }
             delete bullet;
             m_bullets.removeAt(i);
@@ -542,15 +1053,44 @@ void MainWindow::updateBullets()
         }
     }
 
+    if (myHero != nullptr) {
+        const QRectF heroRect(myHero->Hero_x, myHero->Hero_y, HERO_WIDTH, HERO_HEIGHT);
+        for (int i = m_enemyBullets.size() - 1; i >= 0; --i) {
+            Bullet *bullet = m_enemyBullets.at(i);
+            bullet->update();
+
+            if (bullet->isOutOfBounds(worldWidth(), worldHeight()) || bullet->hasReachedMaxDistance()) {
+                delete bullet;
+                m_enemyBullets.removeAt(i);
+                continue;
+            }
+
+            if (!bullet->boundingRect().intersects(heroRect)) {
+                continue;
+            }
+
+            myHero->takeDamage(bullet->damage());
+            delete bullet;
+            m_enemyBullets.removeAt(i);
+        }
+    }
+
     updateHeroAnimation();
     updateSkill3Effect();
     updateEnemies();
+    if (myHero != nullptr && myHero->hp() <= 0) {
+        startDefeatSequence();
+        return;
+    }
     update();
 }
 
 void MainWindow::updateSkillCooldowns()
 {
     const qreal deltaMs = m_gameTimer != nullptr ? m_gameTimer->interval() : 16.0;
+    const qreal previousSkill1CooldownMs = m_skill1CooldownRemainingMs;
+    const qreal previousSkill3CooldownMs = m_skill3CooldownRemainingMs;
+    const qreal previousTreatmentCooldownMs = m_treatmentCooldownRemainingMs;
 
     if (m_skill1CooldownRemainingMs > 0.0) {
         m_skill1CooldownRemainingMs = std::max(0.0, m_skill1CooldownRemainingMs - deltaMs);
@@ -574,11 +1114,18 @@ void MainWindow::updateSkillCooldowns()
         m_treatmentIcon->setCooldownState(m_treatmentCooldownRemainingMs, kTreatmentCooldownMs);
         m_treatmentIcon->setEnabled(m_treatmentCooldownRemainingMs <= 0.0);
     }
+
+    if ((previousSkill1CooldownMs > 0.0 && m_skill1CooldownRemainingMs <= 0.0)
+        || (previousSkill3CooldownMs > 0.0 && m_skill3CooldownRemainingMs <= 0.0)
+        || (previousTreatmentCooldownMs > 0.0 && m_treatmentCooldownRemainingMs <= 0.0)) {
+        playSkillReadySound();
+    }
 }
 
 void MainWindow::updateSkill2Effects()
 {
     const qreal deltaMs = m_gameTimer != nullptr ? m_gameTimer->interval() : 16.0;
+    const qreal previousSkill2CooldownMs = m_skill2CooldownRemainingMs;
 
     if (m_skill2CooldownRemainingMs > 0.0) {
         m_skill2CooldownRemainingMs = std::max(0.0, m_skill2CooldownRemainingMs - deltaMs);
@@ -587,6 +1134,10 @@ void MainWindow::updateSkill2Effects()
     if (m_skill2Icon != nullptr) {
         m_skill2Icon->setCooldownState(m_skill2CooldownRemainingMs, kSkill2CooldownMs);
         m_skill2Icon->setEnabled(m_skill2CooldownRemainingMs <= 0.0);
+    }
+
+    if (previousSkill2CooldownMs > 0.0 && m_skill2CooldownRemainingMs <= 0.0) {
+        playSkillReadySound();
     }
 
     for (int i = m_skill2Explosions.size() - 1; i >= 0; --i) {
@@ -603,6 +1154,7 @@ void MainWindow::updateSkill2Effects()
 void MainWindow::updateFlashState()
 {
     const qreal deltaMs = m_gameTimer != nullptr ? m_gameTimer->interval() : 16.0;
+    const qreal previousFlashCooldownMs = m_flashCooldownRemainingMs;
 
     if (m_flashCooldownRemainingMs > 0.0) {
         m_flashCooldownRemainingMs = std::max(0.0, m_flashCooldownRemainingMs - deltaMs);
@@ -611,6 +1163,10 @@ void MainWindow::updateFlashState()
     if (m_flashIcon != nullptr) {
         m_flashIcon->setCooldownState(m_flashCooldownRemainingMs, kFlashCooldownMs);
         m_flashIcon->setEnabled(m_flashCooldownRemainingMs <= 0.0);
+    }
+
+    if (previousFlashCooldownMs > 0.0 && m_flashCooldownRemainingMs <= 0.0) {
+        playSkillReadySound();
     }
 
     if (!m_flashEffectActive) {
@@ -646,6 +1202,12 @@ void MainWindow::updateHeroMovement()
 
     const qreal inputLength = std::hypot(inputDirection.x(), inputDirection.y());
     if (inputLength > 0.0001) {
+        if (inputDirection.x() < -0.1) {
+            m_heroFacingLeft = true;
+        } else if (inputDirection.x() > 0.1) {
+            m_heroFacingLeft = false;
+        }
+
         const QPointF targetVelocity =
             QPointF(inputDirection.x() / inputLength, inputDirection.y() / inputLength) * myHero->Hero_speed;
         m_heroVelocity = m_heroVelocity * (1.0 - kHeroMoveAcceleration) + targetVelocity * kHeroMoveAcceleration;
@@ -818,6 +1380,100 @@ void MainWindow::castSkill3()
     m_skill3BaseDirection = normalized(m_skillDirection);
     m_skill3HitEnemies.clear();
     m_skill3CooldownRemainingMs = kSkill3CooldownMs;
+
+    bool heroVoicePlaying = false;
+#if QT_VERSION_MAJOR >= 6
+    heroVoicePlaying = m_heroVoicePlayer != nullptr
+        && m_heroVoicePlayer->playbackState() == QMediaPlayer::PlayingState;
+#else
+    heroVoicePlaying = m_heroVoicePlayer != nullptr
+        && m_heroVoicePlayer->state() == QMediaPlayer::PlayingState;
+#endif
+
+    if (!heroVoicePlaying && m_skill3VoicePlayer != nullptr) {
+        m_skill3VoicePlayer->stop();
+        m_skill3VoicePlayer->setPosition(0);
+        m_skill3VoicePlayer->play();
+    }
+}
+
+void MainWindow::updateBulletWheelEffects()
+{
+    const qreal deltaMs = m_gameTimer != nullptr ? m_gameTimer->interval() : 16.0;
+
+    for (int i = m_bulletWheelBursts.size() - 1; i >= 0; --i) {
+        BulletWheelBurst &burst = m_bulletWheelBursts[i];
+        burst.elapsed += deltaMs;
+        if (burst.elapsed < kBulletWheelBurstDurationMs) {
+            continue;
+        }
+
+        m_bulletWheelBursts.removeAt(i);
+    }
+}
+
+void MainWindow::castBulletWheel()
+{
+    if (myHero == nullptr) {
+        return;
+    }
+
+    const QPointF origin = heroCenter();
+    constexpr qreal kBurstRange = 520.0;
+    constexpr qreal kStepRadians = (kPi * 2.0) / 12.0;
+    const qreal bulletSpeeds[12] = {14.0, 15.5, 17.0, 18.5, 20.0, 21.5, 23.0, 24.5, 26.0, 27.5, 29.0, 30.5};
+
+    BulletWheelBurst burst;
+    burst.center = origin;
+    m_bulletWheelBursts.push_back(burst);
+
+    for (int i = 0; i < 12; ++i) {
+        const qreal radians = kStepRadians * i;
+        const QPointF direction(std::cos(radians), std::sin(radians));
+        const QPointF target = origin + direction * kBurstRange;
+        const qreal speed = bulletSpeeds[i];
+
+        switch (i) {
+        case 0:
+            m_bullets.push_back(new Bullet5(origin, target, speed));
+            break;
+        case 1:
+            m_bullets.push_back(new Bullet6(origin, target, speed));
+            break;
+        case 2:
+            m_bullets.push_back(new Bullet7(origin, target, speed));
+            break;
+        case 3:
+            m_bullets.push_back(new Bullet8(origin, target, speed));
+            break;
+        case 4:
+            m_bullets.push_back(new Bullet9(origin, target, speed));
+            break;
+        case 5:
+            m_bullets.push_back(new Bullet10(origin, target, speed));
+            break;
+        case 6:
+            m_bullets.push_back(new Bullet11(origin, target, speed));
+            break;
+        case 7:
+            m_bullets.push_back(new Bullet12(origin, target, speed));
+            break;
+        case 8:
+            m_bullets.push_back(new Bullet13(origin, target, speed));
+            break;
+        case 9:
+            m_bullets.push_back(new Bullet14(origin, target, speed));
+            break;
+        case 10:
+            m_bullets.push_back(new Bullet15(origin, target, speed));
+            break;
+        case 11:
+            m_bullets.push_back(new Bullet16(origin, target, speed));
+            break;
+        default:
+            break;
+        }
+    }
 }
 
 void MainWindow::castTreatment()
@@ -890,6 +1546,17 @@ void MainWindow::updateHeroAnimation()
 
     m_heroMoveAnimationElapsed = 0.0;
     m_heroMoveFrameIndex = (m_heroMoveFrameIndex + 1) % m_heroMoveFrames.size();
+}
+
+void MainWindow::playSkillReadySound()
+{
+    if (m_skillReadyPlayer == nullptr) {
+        return;
+    }
+
+    m_skillReadyPlayer->stop();
+    m_skillReadyPlayer->setPosition(0);
+    m_skillReadyPlayer->play();
 }
 
 void MainWindow::updateSkill3Effect()
@@ -1040,6 +1707,44 @@ void MainWindow::drawSkill2Effects(QPainter &painter) const
     painter.restore();
 }
 
+void MainWindow::drawBulletWheelEffects(QPainter &painter) const
+{
+    painter.save();
+    painter.setRenderHint(QPainter::Antialiasing, true);
+
+    for (const BulletWheelBurst &burst : m_bulletWheelBursts) {
+        const qreal progress = std::clamp(burst.elapsed / kBulletWheelBurstDurationMs, 0.0, 1.0);
+        const qreal fade = 1.0 - progress;
+        const qreal radius = 26.0 + kBulletWheelBurstMaxRadius * progress;
+
+        painter.setPen(Qt::NoPen);
+        painter.setBrush(QColor(255, 214, 112, static_cast<int>(110 * fade)));
+        painter.drawEllipse(burst.center, radius, radius);
+
+        painter.setBrush(QColor(255, 128, 56, static_cast<int>(145 * fade)));
+        painter.drawEllipse(burst.center, radius * 0.42, radius * 0.42);
+
+        QPen ringPen(QColor(255, 244, 186, static_cast<int>(220 * fade)));
+        ringPen.setWidth(6);
+        painter.setPen(ringPen);
+        painter.setBrush(Qt::NoBrush);
+        painter.drawEllipse(burst.center, radius * 0.8, radius * 0.8);
+
+        QPen spokePen(QColor(255, 236, 170, static_cast<int>(205 * fade)));
+        spokePen.setWidth(4);
+        spokePen.setCapStyle(Qt::RoundCap);
+        painter.setPen(spokePen);
+        for (int i = 0; i < 12; ++i) {
+            const qreal radians = (kPi * 2.0 / 12.0) * i + progress * 0.3;
+            const QPointF direction(std::cos(radians), std::sin(radians));
+            painter.drawLine(burst.center + direction * (radius * 0.28),
+                             burst.center + direction * (radius + 20.0 * fade));
+        }
+    }
+
+    painter.restore();
+}
+
 void MainWindow::drawFlashEffect(QPainter &painter) const
 {
     if (!m_flashEffectActive || m_heroIdlePixmap.isNull()) {
@@ -1099,9 +1804,19 @@ void MainWindow::drawFlashEffect(QPainter &painter) const
         const QPointF ghostPos = m_flashEffectStartPos + (m_flashEffectEndPos - m_flashEffectStartPos) * ratio;
         const qreal ghostOpacity = (1.0 - ratio * 0.75) * 0.5 * fade;
         painter.setOpacity(ghostOpacity);
-        painter.drawPixmap(QRectF(ghostPos.x(), ghostPos.y(), HERO_WIDTH, HERO_HEIGHT),
-                           m_heroIdlePixmap,
-                           QRectF(0.0, 0.0, m_heroIdlePixmap.width(), m_heroIdlePixmap.height()));
+        if (m_heroFacingLeft) {
+            painter.save();
+            painter.translate(ghostPos.x() + HERO_WIDTH, ghostPos.y());
+            painter.scale(-1.0, 1.0);
+            painter.drawPixmap(QRectF(0.0, 0.0, HERO_WIDTH, HERO_HEIGHT),
+                               m_heroIdlePixmap,
+                               QRectF(0.0, 0.0, m_heroIdlePixmap.width(), m_heroIdlePixmap.height()));
+            painter.restore();
+        } else {
+            painter.drawPixmap(QRectF(ghostPos.x(), ghostPos.y(), HERO_WIDTH, HERO_HEIGHT),
+                               m_heroIdlePixmap,
+                               QRectF(0.0, 0.0, m_heroIdlePixmap.width(), m_heroIdlePixmap.height()));
+        }
     }
 
     painter.restore();

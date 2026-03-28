@@ -24,7 +24,7 @@ Bullet::Bullet(const QPointF &startPos,
                const QSize &size)
     : Bullet(startPos,
              targetPos,
-             "angela_basic_attack.png",
+             "fireball_circle.png",
              speed,
              maxDistance,
              size)
@@ -69,6 +69,15 @@ int Bullet::damage() const
 void Bullet::paint(QPainter &painter) const
 {
     if (m_pixmap.isNull()) {
+        painter.save();
+        painter.setRenderHint(QPainter::Antialiasing, true);
+        painter.setPen(Qt::NoPen);
+        painter.setBrush(QColor(255, 196, 72, 220));
+        painter.drawEllipse(QRectF(m_pos.x() - m_size.width() / 2.0,
+                                   m_pos.y() - m_size.height() / 2.0,
+                                   m_size.width(),
+                                   m_size.height()));
+        painter.restore();
         return;
     }
 

@@ -20,8 +20,8 @@ configure_file(
     @ONLY
 )
 
-find_package(QT NAMES Qt6 Qt5 REQUIRED COMPONENTS Widgets Multimedia)
-find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Widgets Multimedia)
+find_package(QT NAMES Qt6 Qt5 REQUIRED COMPONENTS Widgets Multimedia MultimediaWidgets)
+find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Widgets Multimedia MultimediaWidgets)
 
 set(PROJECT_SOURCES
         main.cpp
@@ -53,7 +53,23 @@ else()
             config.h
             hero.h hero.cpp
             bullet.h bullet.cpp
+            bullet3.h bullet3.cpp
+            bullet4.h bullet4.cpp
+            bullet5.h bullet5.cpp
+            bullet6.h bullet6.cpp
+            bullet7.h bullet7.cpp
+            bullet8.h bullet8.cpp
+            bullet9.h bullet9.cpp
+            bullet10.h bullet10.cpp
+            bullet11.h bullet11.cpp
+            bullet12.h bullet12.cpp
+            bullet13.h bullet13.cpp
+            bullet14.h bullet14.cpp
+            bullet15.h bullet15.cpp
+            bullet16.h bullet16.cpp
             skill2bullet.h skill2bullet.cpp
+            crystal.h crystal.cpp
+            tower.h tower.cpp
             enemy.h enemy.cpp
         )
     endif()
@@ -72,6 +88,7 @@ endif()
 target_link_libraries(honor-of-hero PRIVATE
     Qt${QT_VERSION_MAJOR}::Widgets
     Qt${QT_VERSION_MAJOR}::Multimedia
+    Qt${QT_VERSION_MAJOR}::MultimediaWidgets
 )
 
 # Qt for iOS sets MACOSX_BUNDLE_GUI_IDENTIFIER automatically since Qt 6.1.
