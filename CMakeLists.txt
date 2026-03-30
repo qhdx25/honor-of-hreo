@@ -67,10 +67,16 @@ else()
             bullet14.h bullet14.cpp
             bullet15.h bullet15.cpp
             bullet16.h bullet16.cpp
+            boomerangbullet.h boomerangbullet.cpp
             skill2bullet.h skill2bullet.cpp
             crystal.h crystal.cpp
             tower.h tower.cpp
             enemy.h enemy.cpp
+            dragonenemy.h dragonenemy.cpp
+            boss2enemy.h boss2enemy.cpp
+            dragontornadobullet.h dragontornadobullet.cpp
+            pet.h pet.cpp
+            medicinepack.h medicinepack.cpp
         )
     endif()
 endif()
