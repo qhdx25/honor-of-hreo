@@ -3,5 +3,7 @@ build/
 .cursor/
 *.user
 *.autosave
+dist/
+installer/*.zip
 res/music.mp4
 res/startmusic.mp4

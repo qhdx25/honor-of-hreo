@@ -2,6 +2,9 @@
 
 #include "assetpaths.h"
 
+#include <QCoreApplication>
+#include <QDir>
+#include <QFileInfo>
 #include <QPainter>
 #include <QString>
 #include <algorithm>
@@ -9,7 +12,12 @@
 namespace {
 QString assetPath(const QString &fileName)
 {
-    return QString::fromUtf8(kAssetDir) + "/" + fileName;
+    const QString packagedPath = QDir(QCoreApplication::applicationDirPath()).filePath("res/" + fileName);
+    if (QFileInfo::exists(packagedPath)) {
+        return packagedPath;
+    }
+
+    return QString::fromUtf8(kSourceAssetDir) + "/" + fileName;
 }
 
 constexpr qreal kCrystalAttackIntervalMs = 1800.0;

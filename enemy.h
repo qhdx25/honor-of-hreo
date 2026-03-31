@@ -16,15 +16,21 @@ public:
         Warrior,
         Mage,
         Tank,
-        Assassin
+        Assassin,
+        Dragon,
+        Boss2
     };
 
     Enemy(Type type, const QPointF &startPos);
+    virtual ~Enemy() = default;
 
+    Type type() const { return m_type; }
     void updateToward(const QPointF &targetPos);
     void paint(QPainter &painter) const;
     int attackDamage() const;
     bool tryAttackTarget(const QPointF &targetPos, qreal deltaMs);
+    void setCenter(const QPointF &centerPos);
+    void applyKnockback(const QPointF &direction, qreal distance, int worldWidth, int worldHeight);
 
     // 供碰撞检测使用：返回敌人的包围盒（与绘制的 bodyRect 对齐）
     QRectF boundingRect() const;

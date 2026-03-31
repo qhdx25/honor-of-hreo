@@ -1,39 +1,55 @@
 #include "enemy.h"
 #include "assetpaths.h"
 
-#include <QPolygonF>
-#include <QRectF>
-#include <QPainter>
+#include <QCoreApplication>
+#include <QDir>
+#include <QFileInfo>
 #include <QLineF>
+#include <QPainter>
+#include <QPixmap>
+#include <QRectF>
 #include <algorithm>
+#include <cmath>
 
 namespace {
 QString assetPath(const QString &fileName)
 {
-    return QString::fromUtf8(kAssetDir) + "/" + fileName;
+    const QString packagedPath = QDir(QCoreApplication::applicationDirPath()).filePath("res/" + fileName);
+    if (QFileInfo::exists(packagedPath)) {
+        return packagedPath;
+    }
+
+    return QString::fromUtf8(kSourceAssetDir) + "/" + fileName;
 }
-// 功能：传入一个敌人类型 Enemy::Type，返回对应的尺寸 QSize（宽, 高）
+
+bool isBossEnemyType(Enemy::Type type)
+{
+    return type == Enemy::Type::Dragon || type == Enemy::Type::Boss2;
+}
+
 QSize enemySizeForType(Enemy::Type type)
 {
     switch (type) {
-    case Enemy::Type::Scout:// 侦察兵
+    case Enemy::Type::Scout:
         return QSize(92, 92);
-    case Enemy::Type::Warrior:// 战士
-        return QSize(84, 84);
-    case Enemy::Type::Mage:// 法师
+    case Enemy::Type::Warrior:
         return QSize(104, 104);
+    case Enemy::Type::Mage:
+        return QSize(124, 124);
     case Enemy::Type::Tank:
-        return QSize(64, 64);// 坦克
+        return QSize(104, 104);
     case Enemy::Type::Assassin:
-        return QSize(50, 50);
+        return QSize(120, 120);
+    case Enemy::Type::Dragon:
+    case Enemy::Type::Boss2:
+        return QSize(240, 240);
     }
+
     return QSize(48, 48);
 }
-// 作用：传入敌人类型，返回这个敌人的【最大血量】
-// 返回值是 int 整数，代表血量数值
+
 int enemyMaxHpForType(Enemy::Type type)
 {
-    // 你可以按玩法随时调整这些数值
     switch (type) {
     case Enemy::Type::Scout:
         return 60;
@@ -45,11 +61,14 @@ int enemyMaxHpForType(Enemy::Type type)
         return 160;
     case Enemy::Type::Assassin:
         return 70;
+    case Enemy::Type::Dragon:
+    case Enemy::Type::Boss2:
+        return 1960;
     }
+
     return 100;
 }
-// 作用：传入敌人类型 Enemy::Type，返回这个敌人的【移动速度】
-// 返回值类型 qreal = Qt 里的小数（浮点数）
+
 qreal enemySpeedForType(Enemy::Type type)
 {
     switch (type) {
@@ -63,11 +82,14 @@ qreal enemySpeedForType(Enemy::Type type)
         return 2.4;
     case Enemy::Type::Assassin:
         return 5.2;
+    case Enemy::Type::Dragon:
+    case Enemy::Type::Boss2:
+        return 2.5;
     }
+
     return 3.5;
 }
-// 作用：传入敌人类型，返回【攻击范围 / 伸手距离】
-// qreal = 小数，代表范围半径
+
 qreal enemyReachRadiusForType(Enemy::Type type)
 {
     switch (type) {
@@ -81,7 +103,11 @@ qreal enemyReachRadiusForType(Enemy::Type type)
         return 26.0;
     case Enemy::Type::Assassin:
         return 19.0;
+    case Enemy::Type::Dragon:
+    case Enemy::Type::Boss2:
+        return 540.0;
     }
+
     return 20.0;
 }
 
@@ -98,7 +124,11 @@ int enemyAttackDamageForType(Enemy::Type type)
         return 18;
     case Enemy::Type::Assassin:
         return 16;
+    case Enemy::Type::Dragon:
+    case Enemy::Type::Boss2:
+        return 52;
     }
+
     return 10;
 }
 
@@ -115,10 +145,14 @@ qreal enemyAttackIntervalForType(Enemy::Type type)
         return 1250.0;
     case Enemy::Type::Assassin:
         return 720.0;
+    case Enemy::Type::Dragon:
+    case Enemy::Type::Boss2:
+        return 1750.0;
     }
+
     return 1000.0;
 }
-// 函数作用：传入敌人类型，返回【对应的图片】
+
 const QPixmap &enemySpriteForType(Enemy::Type type)
 {
     static const QPixmap scoutPixmap(assetPath("hok_ballista_minion.png"));
@@ -126,6 +160,8 @@ const QPixmap &enemySpriteForType(Enemy::Type type)
     static const QPixmap magePixmap(assetPath("hok_mage_minion.png"));
     static const QPixmap tankPixmap(assetPath("hok_super_minion.png"));
     static const QPixmap assassinPixmap(assetPath("hok_melee_minion.png"));
+    static const QPixmap dragonPixmap(assetPath("dragon.png"));
+    static const QPixmap boss2Pixmap(assetPath("boss2.png"));
     static const QPixmap emptyPixmap;
 
     switch (type) {
@@ -139,12 +175,16 @@ const QPixmap &enemySpriteForType(Enemy::Type type)
         return tankPixmap;
     case Enemy::Type::Assassin:
         return assassinPixmap;
+    case Enemy::Type::Dragon:
+        return dragonPixmap;
+    case Enemy::Type::Boss2:
+        return boss2Pixmap;
     }
 
     return emptyPixmap;
 }
 } // namespace
-// 构造函数：创建一个敌人
+
 Enemy::Enemy(Type type, const QPointF &startPos)
     : m_pos(startPos)
     , m_type(type)
@@ -155,7 +195,7 @@ Enemy::Enemy(Type type, const QPointF &startPos)
     , m_hp(m_maxHp)
 {
 }
-// 碰撞矩形
+
 QRectF Enemy::boundingRect() const
 {
     return QRectF(m_pos.x() - m_size.width() / 2.0,
@@ -163,25 +203,25 @@ QRectF Enemy::boundingRect() const
                   m_size.width(),
                   m_size.height());
 }
-//受伤逻辑
+
 void Enemy::takeDamage(int amount)
 {
     if (amount <= 0 || m_hp <= 0) {
         return;
     }
+
     m_hp -= amount;
     if (m_hp < 0) {
         m_hp = 0;
     }
 }
-//判断敌人是否 “进入屏幕
+
 void Enemy::updateEnteredState(int width, int height)
 {
     if (m_hasEnteredScreen) {
         return;
     }
 
-    // “进入屏幕”的判定：敌人整体至少有一部分在窗口范围内即可。
     const qreal halfWidth = m_size.width() / 2.0;
     const qreal halfHeight = m_size.height() / 2.0;
 
@@ -195,7 +235,7 @@ void Enemy::updateEnteredState(int width, int height)
         m_hasEnteredScreen = true;
     }
 }
-//朝目标移动
+
 void Enemy::updateToward(const QPointF &targetPos)
 {
     const QLineF line(m_pos, targetPos);
@@ -220,6 +260,40 @@ bool Enemy::tryAttackTarget(const QPointF &targetPos, qreal deltaMs)
     return true;
 }
 
+void Enemy::setCenter(const QPointF &centerPos)
+{
+    m_pos = centerPos;
+}
+
+void Enemy::applyKnockback(const QPointF &direction, qreal distance, int worldWidth, int worldHeight)
+{
+    if (distance <= 0.0) {
+        return;
+    }
+
+    const qreal length = std::hypot(direction.x(), direction.y());
+    if (length <= 0.0001) {
+        return;
+    }
+
+    qreal adjustedDistance = distance;
+    if (isBossEnemyType(m_type)) {
+        adjustedDistance *= 0.4;
+    } else if (m_type == Type::Tank) {
+        adjustedDistance *= 0.65;
+    }
+
+    const QPointF normalizedDirection(direction.x() / length, direction.y() / length);
+    const QPointF nextCenter = m_pos + normalizedDirection * adjustedDistance;
+    const qreal halfWidth = m_size.width() / 2.0;
+    const qreal halfHeight = m_size.height() / 2.0;
+    const qreal maxCenterX = std::max(halfWidth, worldWidth - halfWidth * 1.0);
+    const qreal maxCenterY = std::max(halfHeight, worldHeight - halfHeight * 1.0);
+
+    m_pos = QPointF(std::clamp(nextCenter.x(), halfWidth, maxCenterX),
+                    std::clamp(nextCenter.y(), halfHeight, maxCenterY));
+}
+
 int Enemy::attackDamage() const
 {
     return enemyAttackDamageForType(m_type);
@@ -232,19 +306,16 @@ void Enemy::paint(QPainter &painter) const
     painter.setPen(Qt::NoPen);
 
     const QRectF bodyRect = boundingRect();
-
-    // 头顶血条（红色代表生命值）
-    // - 血条随敌人一起移动：只要用 bodyRect 计算位置即可
-    // - 当 hp 变为 0，会在上层逻辑中删除敌人
-    const qreal barHeight = 6.0;
-    const qreal barMarginBottom = 8.0; // 血条距离敌人顶部的间距
+    const bool isBoss = isBossEnemyType(m_type);
+    const qreal barHeight = isBoss ? 12.0 : 6.0;
+    const qreal barMarginBottom = isBoss ? 16.0 : 8.0;
     const QRectF barBgRect(bodyRect.left(),
                            bodyRect.top() - barMarginBottom - barHeight,
                            bodyRect.width(),
                            barHeight);
 
-    painter.setBrush(QColor(40, 40, 40, 200)); // 血条底色（暗灰）
-    painter.drawRoundedRect(barBgRect, 2, 2);
+    painter.setBrush(QColor(40, 40, 40, 200));
+    painter.drawRoundedRect(barBgRect, isBoss ? 5.0 : 2.0, isBoss ? 5.0 : 2.0);
 
     const qreal hpRatio = (m_maxHp <= 0) ? 0.0 : (static_cast<qreal>(m_hp) / static_cast<qreal>(m_maxHp));
     const QRectF barHpRect(barBgRect.left(),
@@ -252,8 +323,17 @@ void Enemy::paint(QPainter &painter) const
                            barBgRect.width() * std::clamp(hpRatio, 0.0, 1.0),
                            barBgRect.height());
 
-    painter.setBrush(QColor(230, 30, 30)); // 红色血量条
-    painter.drawRoundedRect(barHpRect, 2, 2);
+    painter.setBrush(isBoss ? QColor(255, 92, 44) : QColor(230, 30, 30));
+    painter.drawRoundedRect(barHpRect, isBoss ? 5.0 : 2.0, isBoss ? 5.0 : 2.0);
+
+    if (isBoss) {
+        painter.setBrush(Qt::NoBrush);
+        QPen bossBarPen(QColor(255, 214, 120, 220));
+        bossBarPen.setWidth(2);
+        painter.setPen(bossBarPen);
+        painter.drawRoundedRect(barBgRect.adjusted(-3.0, -3.0, 3.0, 3.0), 7.0, 7.0);
+        painter.setPen(Qt::NoPen);
+    }
 
     const QPixmap &enemySprite = enemySpriteForType(m_type);
     if (!enemySprite.isNull()) {
@@ -265,7 +345,7 @@ void Enemy::paint(QPainter &painter) const
 
     painter.restore();
 }
-//判断敌人是否完全跑出了屏幕外
+
 bool Enemy::isOutOfBounds(int width, int height) const
 {
     const qreal halfWidth = m_size.width() / 2.0;
@@ -281,7 +361,7 @@ bool Enemy::reachesTarget(const QPointF &targetPos) const
 {
     return QLineF(m_pos, targetPos).length() <= m_reachRadius;
 }
-//判断敌人是否【已经靠近目标，可以攻击了】
+
 QColor Enemy::bodyColor() const
 {
     switch (m_type) {
@@ -295,10 +375,14 @@ QColor Enemy::bodyColor() const
         return QColor(70, 150, 95);
     case Type::Assassin:
         return QColor(35, 95, 190);
+    case Type::Dragon:
+    case Type::Boss2:
+        return QColor(166, 54, 42);
     }
+
     return QColor(200, 80, 80);
 }
-//给每种敌人分配一个专属的「强调色」，用于 UI、特效、边框、血条、图标
+
 QColor Enemy::accentColor() const
 {
     switch (m_type) {
@@ -312,6 +396,10 @@ QColor Enemy::accentColor() const
         return QColor(210, 255, 220);
     case Type::Assassin:
         return QColor(220, 240, 255);
+    case Type::Dragon:
+    case Type::Boss2:
+        return QColor(255, 210, 156);
     }
+
     return QColor(255, 240, 200);
 }

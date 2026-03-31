@@ -21,12 +21,13 @@ public:
            const QSize &size = defaultSize());
     virtual ~Bullet() = default;
 
-    void update();
+    virtual void update();
     virtual int damage() const;
     virtual void paint(QPainter &painter) const;
-    bool isOutOfBounds(int width, int height) const;
-    bool hasReachedMaxDistance() const;
-    QRectF boundingRect() const;
+    virtual bool isOutOfBounds(int width, int height) const;
+    virtual bool hasReachedMaxDistance() const;
+    virtual QRectF boundingRect() const;
+    QPointF velocity() const { return m_velocity; }
 
 protected:
     Bullet(const QPointF &startPos,

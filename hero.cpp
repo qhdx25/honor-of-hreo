@@ -2,16 +2,36 @@
 #include "config.h"
 
 #include <algorithm>
+#include <array>
 #include <cmath>
+
+namespace {
+constexpr int kHeroMaxLevel = 4;
+
+int experienceRequiredForLevel(int level)
+{
+    static constexpr std::array<int, kHeroMaxLevel + 1> kExperienceRequirements = {0, 0, 480, 1200, 2160};
+    const int clampedLevel = std::clamp(level, 1, kHeroMaxLevel);
+    return kExperienceRequirements.at(clampedLevel);
+}
+}
 
 hero::hero()
 {
     setPosition(100, 100);
     Hero_speed = 10;
+    resetState();
 }
 
 void hero::shoot()
 {
+}
+
+void hero::resetState()
+{
+    m_hp = m_maxHp;
+    m_level = 1;
+    m_experience = 0;
 }
 
 void hero::takeDamage(int amount)
@@ -38,6 +58,28 @@ void hero::heal(int amount)
     }
 }
 
+int hero::gainExperience(int amount)
+{
+    if (amount <= 0 || isMaxLevel()) {
+        return 0;
+    }
+
+    m_experience += amount;
+
+    int levelsGained = 0;
+    while (m_level < kHeroMaxLevel && m_experience >= experienceRequiredForLevel(m_level + 1)) {
+        ++m_level;
+        ++levelsGained;
+    }
+
+    if (m_level >= kHeroMaxLevel) {
+        m_level = kHeroMaxLevel;
+        m_experience = experienceRequiredForLevel(kHeroMaxLevel);
+    }
+
+    return levelsGained;
+}
+
 int hero::hp() const
 {
     return m_hp;
@@ -55,6 +97,53 @@ qreal hero::hpRatio() const
     }
 
     return static_cast<qreal>(m_hp) / static_cast<qreal>(m_maxHp);
+}
+
+int hero::level() const
+{
+    return m_level;
+}
+
+int hero::maxLevel() const
+{
+    return kHeroMaxLevel;
+}
+
+int hero::experience() const
+{
+    return m_experience;
+}
+
+int hero::experienceToNextLevel() const
+{
+    if (isMaxLevel()) {
+        return 0;
+    }
+
+    return experienceRequiredForLevel(m_level + 1) - m_experience;
+}
+
+qreal hero::experienceRatio() const
+{
+    if (isMaxLevel()) {
+        return 1.0;
+    }
+
+    const int currentLevelExperience = experienceRequiredForLevel(m_level);
+    const int nextLevelExperience = experienceRequiredForLevel(m_level + 1);
+    const int segmentExperience = std::max(1, nextLevelExperience - currentLevelExperience);
+    const int progressExperience = std::clamp(m_experience - currentLevelExperience, 0, segmentExperience);
+    return static_cast<qreal>(progressExperience) / static_cast<qreal>(segmentExperience);
+}
+
+bool hero::isMaxLevel() const
+{
+    return m_level >= kHeroMaxLevel;
+}
+
+int hero::unlockedSkillCount() const
+{
+    return std::max(0, m_level - 1);
 }
 
 QPointF hero::shootOrigin() const

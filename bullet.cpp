@@ -1,6 +1,9 @@
 #include "bullet.h"
 #include "assetpaths.h"
 
+#include <QCoreApplication>
+#include <QDir>
+#include <QFileInfo>
 #include <QLineF>
 #include <QPainter>
 #include <cmath>
@@ -8,7 +11,12 @@
 namespace {
 QString assetPath(const QString &fileName)
 {
-    return QString::fromUtf8(kAssetDir) + "/" + fileName;
+    const QString packagedPath = QDir(QCoreApplication::applicationDirPath()).filePath("res/" + fileName);
+    if (QFileInfo::exists(packagedPath)) {
+        return packagedPath;
+    }
+
+    return QString::fromUtf8(kSourceAssetDir) + "/" + fileName;
 }
 }
 

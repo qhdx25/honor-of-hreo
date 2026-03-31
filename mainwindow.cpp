@@ -46,6 +46,7 @@
 #include <QUrl>
 #include <QWheelEvent>
 #include <QBrush>
+#include <QCoreApplication>
 #include <QString>
 #include <algorithm>
 #include <cmath>
@@ -100,7 +101,12 @@ constexpr qreal kDragonTornadoDistance = 980.0;
 
 QString assetPath(const QString &fileName)
 {
-    return QString::fromUtf8(kAssetDir) + "/" + fileName;
+    const QString packagedPath = QDir(QCoreApplication::applicationDirPath()).filePath("res/" + fileName);
+    if (QFileInfo::exists(packagedPath)) {
+        return packagedPath;
+    }
+
+    return QString::fromUtf8(kSourceAssetDir) + "/" + fileName;
 }
 
 QString firstExistingAssetPath(const QStringList &fileNames)
@@ -1680,6 +1686,7 @@ void MainWindow::updateBullets()
                 boomerangBullet->registerEnemyHit(enemy);
             }
             if (isSkill2Hit) {
+                enemy->applyKnockback(bullet->velocity(), 95.0, worldWidth(), worldHeight());
                 Skill2Explosion explosion;
                 explosion.center = bulletRect.center();
                 m_skill2Explosions.push_back(explosion);

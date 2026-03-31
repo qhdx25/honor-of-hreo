@@ -123,6 +123,26 @@ void SkillIconWidget::paintEvent(QPaintEvent *event)
     const QRect pixRect(drawX, drawY, pix.width(), pix.height());
     painter.drawPixmap(pixRect, pix);
 
+    if (!isEnabled()) {
+        painter.setRenderHint(QPainter::Antialiasing, true);
+        const qreal overlayDiameter = std::max<qreal>(0.0, std::min(pixRect.width(), pixRect.height()) - 8.0);
+        const QPointF iconCenter = pixRect.center();
+        const QRectF overlayRect(iconCenter.x() - overlayDiameter / 2.0,
+                                 iconCenter.y() - overlayDiameter / 2.0,
+                                 overlayDiameter,
+                                 overlayDiameter);
+
+        painter.setPen(Qt::NoPen);
+        painter.setBrush(QColor(8, 12, 18, 170));
+        painter.drawEllipse(overlayRect);
+
+        QPen shadowRingPen(QColor(255, 255, 255, 36));
+        shadowRingPen.setWidth(3);
+        painter.setPen(shadowRingPen);
+        painter.setBrush(Qt::NoBrush);
+        painter.drawEllipse(overlayRect.adjusted(-2.0, -2.0, 2.0, 2.0));
+    }
+
     if (m_cooldownRemainingMs <= 0.0 || m_cooldownTotalMs <= 0.0) {
         return;
     }
