@@ -24,7 +24,12 @@ QString assetPath(const QString &fileName)
 
 bool isBossEnemyType(Enemy::Type type)
 {
-    return type == Enemy::Type::Dragon || type == Enemy::Type::Boss2;
+    return type == Enemy::Type::Dragon || type == Enemy::Type::Boss2 || type == Enemy::Type::Boss3;
+}
+
+bool isRangedEnemyType(Enemy::Type type)
+{
+    return type == Enemy::Type::Shooter || type == Enemy::Type::Boss3;
 }
 
 QSize enemySizeForType(Enemy::Type type)
@@ -40,8 +45,11 @@ QSize enemySizeForType(Enemy::Type type)
         return QSize(104, 104);
     case Enemy::Type::Assassin:
         return QSize(120, 120);
+    case Enemy::Type::Shooter:
+        return QSize(132, 132);
     case Enemy::Type::Dragon:
     case Enemy::Type::Boss2:
+    case Enemy::Type::Boss3:
         return QSize(240, 240);
     }
 
@@ -61,9 +69,13 @@ int enemyMaxHpForType(Enemy::Type type)
         return 160;
     case Enemy::Type::Assassin:
         return 70;
+    case Enemy::Type::Shooter:
+        return 120;
     case Enemy::Type::Dragon:
     case Enemy::Type::Boss2:
         return 1960;
+    case Enemy::Type::Boss3:
+        return 860;
     }
 
     return 100;
@@ -82,9 +94,13 @@ qreal enemySpeedForType(Enemy::Type type)
         return 2.4;
     case Enemy::Type::Assassin:
         return 5.2;
+    case Enemy::Type::Shooter:
+        return 2.9;
     case Enemy::Type::Dragon:
     case Enemy::Type::Boss2:
         return 2.5;
+    case Enemy::Type::Boss3:
+        return 2.1;
     }
 
     return 3.5;
@@ -103,9 +119,13 @@ qreal enemyReachRadiusForType(Enemy::Type type)
         return 26.0;
     case Enemy::Type::Assassin:
         return 19.0;
+    case Enemy::Type::Shooter:
+        return 720.0;
     case Enemy::Type::Dragon:
     case Enemy::Type::Boss2:
         return 540.0;
+    case Enemy::Type::Boss3:
+        return 860.0;
     }
 
     return 20.0;
@@ -124,9 +144,13 @@ int enemyAttackDamageForType(Enemy::Type type)
         return 18;
     case Enemy::Type::Assassin:
         return 16;
+    case Enemy::Type::Shooter:
+        return 22;
     case Enemy::Type::Dragon:
     case Enemy::Type::Boss2:
         return 52;
+    case Enemy::Type::Boss3:
+        return 36;
     }
 
     return 10;
@@ -145,9 +169,13 @@ qreal enemyAttackIntervalForType(Enemy::Type type)
         return 1250.0;
     case Enemy::Type::Assassin:
         return 720.0;
+    case Enemy::Type::Shooter:
+        return 1650.0;
     case Enemy::Type::Dragon:
     case Enemy::Type::Boss2:
         return 1750.0;
+    case Enemy::Type::Boss3:
+        return 325.0;
     }
 
     return 1000.0;
@@ -160,8 +188,10 @@ const QPixmap &enemySpriteForType(Enemy::Type type)
     static const QPixmap magePixmap(assetPath("hok_mage_minion.png"));
     static const QPixmap tankPixmap(assetPath("hok_super_minion.png"));
     static const QPixmap assassinPixmap(assetPath("hok_melee_minion.png"));
+    static const QPixmap shooterPixmap(assetPath("enemy.png"));
     static const QPixmap dragonPixmap(assetPath("dragon.png"));
     static const QPixmap boss2Pixmap(assetPath("boss2.png"));
+    static const QPixmap boss3Pixmap(assetPath("boss3.png"));
     static const QPixmap emptyPixmap;
 
     switch (type) {
@@ -175,10 +205,14 @@ const QPixmap &enemySpriteForType(Enemy::Type type)
         return tankPixmap;
     case Enemy::Type::Assassin:
         return assassinPixmap;
+    case Enemy::Type::Shooter:
+        return shooterPixmap;
     case Enemy::Type::Dragon:
         return dragonPixmap;
     case Enemy::Type::Boss2:
         return boss2Pixmap;
+    case Enemy::Type::Boss3:
+        return boss3Pixmap;
     }
 
     return emptyPixmap;
@@ -281,6 +315,8 @@ void Enemy::applyKnockback(const QPointF &direction, qreal distance, int worldWi
         adjustedDistance *= 0.4;
     } else if (m_type == Type::Tank) {
         adjustedDistance *= 0.65;
+    } else if (isRangedEnemyType(m_type)) {
+        adjustedDistance *= 0.8;
     }
 
     const QPointF normalizedDirection(direction.x() / length, direction.y() / length);
@@ -337,7 +373,25 @@ void Enemy::paint(QPainter &painter) const
 
     const QPixmap &enemySprite = enemySpriteForType(m_type);
     if (!enemySprite.isNull()) {
-        painter.drawPixmap(bodyRect.toRect(), enemySprite);
+        if (m_type == Type::Shooter && std::abs(m_velocity.x()) > 0.01) {
+            painter.save();
+            if (m_velocity.x() < 0.0) {
+                painter.translate(bodyRect.left(), bodyRect.top());
+                painter.scale(1.0, 1.0);
+                painter.drawPixmap(QRectF(0.0, 0.0, bodyRect.width(), bodyRect.height()),
+                                   enemySprite,
+                                   QRectF(0.0, 0.0, enemySprite.width(), enemySprite.height()));
+            } else {
+                painter.translate(bodyRect.right(), bodyRect.top());
+                painter.scale(-1.0, 1.0);
+                painter.drawPixmap(QRectF(0.0, 0.0, bodyRect.width(), bodyRect.height()),
+                                   enemySprite,
+                                   QRectF(0.0, 0.0, enemySprite.width(), enemySprite.height()));
+            }
+            painter.restore();
+        } else {
+            painter.drawPixmap(bodyRect.toRect(), enemySprite);
+        }
     } else {
         painter.setBrush(bodyColor());
         painter.drawEllipse(bodyRect);
@@ -375,8 +429,11 @@ QColor Enemy::bodyColor() const
         return QColor(70, 150, 95);
     case Type::Assassin:
         return QColor(35, 95, 190);
+    case Type::Shooter:
+        return QColor(132, 58, 162);
     case Type::Dragon:
     case Type::Boss2:
+    case Type::Boss3:
         return QColor(166, 54, 42);
     }
 
@@ -396,8 +453,11 @@ QColor Enemy::accentColor() const
         return QColor(210, 255, 220);
     case Type::Assassin:
         return QColor(220, 240, 255);
+    case Type::Shooter:
+        return QColor(245, 210, 255);
     case Type::Dragon:
     case Type::Boss2:
+    case Type::Boss3:
         return QColor(255, 210, 156);
     }
 

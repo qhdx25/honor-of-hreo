@@ -67,6 +67,8 @@ else()
             bullet14.h bullet14.cpp
             bullet15.h bullet15.cpp
             bullet16.h bullet16.cpp
+            enemybullet.h enemybullet.cpp
+            enemybullet2.h enemybullet2.cpp
             boomerangbullet.h boomerangbullet.cpp
             skill2bullet.h skill2bullet.cpp
             crystal.h crystal.cpp

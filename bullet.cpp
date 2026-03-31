@@ -89,11 +89,31 @@ void Bullet::paint(QPainter &painter) const
         return;
     }
 
+    if (rotatesToVelocity()) {
+        painter.save();
+        painter.setRenderHint(QPainter::SmoothPixmapTransform, true);
+        painter.translate(m_pos);
+        painter.rotate(std::atan2(m_velocity.y(), m_velocity.x()) * 180.0 / M_PI);
+        painter.drawPixmap(QRectF(-m_size.width() / 2.0,
+                                  -m_size.height() / 2.0,
+                                  m_size.width(),
+                                  m_size.height()),
+                           m_pixmap,
+                           QRectF(0.0, 0.0, m_pixmap.width(), m_pixmap.height()));
+        painter.restore();
+        return;
+    }
+
     painter.drawPixmap(static_cast<int>(m_pos.x() - m_size.width() / 2.0),
                        static_cast<int>(m_pos.y() - m_size.height() / 2.0),
                        m_size.width(),
                        m_size.height(),
                        m_pixmap);
+}
+
+bool Bullet::rotatesToVelocity() const
+{
+    return false;
 }
 
 bool Bullet::isOutOfBounds(int width, int height) const

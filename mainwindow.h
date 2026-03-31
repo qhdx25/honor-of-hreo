@@ -89,6 +89,7 @@ private:
     void castSkill1();
     void castSkill2();
     void castSkill3();
+    void applySkill2AreaDamage(const QPointF &impactCenter, const QPointF &impactDirection, int damage);
     void castSkill6();
     void castSkill7();
     void castBulletWheel();
@@ -124,7 +125,8 @@ private:
     void drawSkill3Effect(QPainter &painter) const;
     void spawnDragonEnemy();
     void spawnBoss2Enemy();
-    void resolveBossOverlap();
+    void spawnBoss3Enemy();
+    void resolveEnemyOverlap();
     void togglePause();
     void setPaused(bool paused);
     void handleEnemyDefeat(int enemyIndex);
@@ -203,6 +205,7 @@ private:
     qreal m_heroMoveHoldElapsed = 0.0;
     qreal m_heroVoiceCountdownMs = -1.0;
     qreal m_dragonSpawnCountdownMs = 0.0;
+    qreal m_boss3SpawnCountdownMs = 0.0;
     qreal m_medicineRespawnCountdownMs = 0.0;
     qreal m_skill3Elapsed = 0.0;
     qreal m_aboutScrollOffset = 0.0;

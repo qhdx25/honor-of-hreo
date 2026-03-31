@@ -22,6 +22,8 @@
 #include "crystal.h"
 #include "dragonenemy.h"
 #include "dragontornadobullet.h"
+#include "enemybullet.h"
+#include "enemybullet2.h"
 #include "medicinepack.h"
 #include "enemy.h"
 #include "pet.h"
@@ -66,6 +68,7 @@ constexpr qreal kSkill3CooldownMs = 16000.0;
 constexpr qreal kSkill6CooldownMs = 2000.0;
 constexpr qreal kSkill2ExplosionDurationMs = 280.0;
 constexpr qreal kSkill2ExplosionMaxRadius = 110.0;
+constexpr qreal kSkill2DamageRadius = 150.0;
 constexpr qreal kBulletWheelBurstDurationMs = 360.0;
 constexpr qreal kBulletWheelBurstMaxRadius = 170.0;
 constexpr qreal kHeroMoveFrameDurationMs = 80.0;
@@ -75,10 +78,8 @@ constexpr qreal kHeroMoveBrake = 0.76;
 constexpr qreal kHeroMoveStopThreshold = 0.2;
 constexpr int kHeroMoveFrameWidth = HERO_WIDTH + 20;
 constexpr int kHeroMoveFrameHeight = HERO_HEIGHT + 20;
-constexpr int kHeroHpBarWidth = 170;
-constexpr int kHeroHpBarHeight = 26;
-constexpr int kHeroExpBarWidth = 156;
-constexpr int kHeroExpBarHeight = 12;
+constexpr int kHeroHpBarWidth = 340;
+constexpr int kHeroHpBarHeight = 38;
 constexpr qreal kFlashCooldownMs = 6000.0;
 constexpr qreal kFlashDistance = 260.0;
 constexpr qreal kFlashEffectDurationMs = 220.0;
@@ -90,6 +91,7 @@ constexpr int kDefeatAnimationFrameIntervalMs = 67;
 constexpr qreal kHeroVoiceInitialDelayMs = 10000.0;
 constexpr qreal kHeroVoiceRepeatDelayMs = 120000.0;
 constexpr qreal kDragonSpawnDelayMs = 120000.0;
+constexpr qreal kBoss3SpawnDelayMs = 40000.0;
 constexpr qreal kMedicineRespawnDelayMs = 120000.0;
 constexpr int kMedicineHealAmount = 280;
 constexpr qreal kDragonAttackWaveDurationMs = 520.0;
@@ -166,7 +168,12 @@ qreal distancePointToSegment(const QPointF &point, const QPointF &start, const Q
 
 bool isBossEnemyType(Enemy::Type type)
 {
-    return type == Enemy::Type::Dragon || type == Enemy::Type::Boss2;
+    return type == Enemy::Type::Dragon || type == Enemy::Type::Boss2 || type == Enemy::Type::Boss3;
+}
+
+bool isRangedEnemyType(Enemy::Type type)
+{
+    return type == Enemy::Type::Shooter || type == Enemy::Type::Boss3;
 }
 
 int experienceForEnemyType(Enemy::Type type)
@@ -182,9 +189,13 @@ int experienceForEnemyType(Enemy::Type type)
         return 36;
     case Enemy::Type::Assassin:
         return 26;
+    case Enemy::Type::Shooter:
+        return 34;
     case Enemy::Type::Dragon:
     case Enemy::Type::Boss2:
         return 120;
+    case Enemy::Type::Boss3:
+        return 90;
     }
 
     return 20;
@@ -1057,6 +1068,7 @@ void MainWindow::startGame()
     }
     m_heroVoiceCountdownMs = kHeroVoiceInitialDelayMs;
     m_dragonSpawnCountdownMs = kDragonSpawnDelayMs;
+    m_boss3SpawnCountdownMs = kBoss3SpawnDelayMs;
     m_dragonSpawned = false;
     m_boss2Spawned = false;
     setFocus();
@@ -1319,6 +1331,7 @@ void MainWindow::resetGameplayState()
     m_heroMoveHoldElapsed = 0.0;
     m_heroVoiceCountdownMs = -1.0;
     m_dragonSpawnCountdownMs = kDragonSpawnDelayMs;
+    m_boss3SpawnCountdownMs = kBoss3SpawnDelayMs;
     m_medicineRespawnCountdownMs = 0.0;
     m_skill3Elapsed = 0.0;
     m_heroMoveFrameIndex = 0;
@@ -1587,6 +1600,14 @@ void MainWindow::updateBullets()
         }
     }
 
+    if (m_boss3SpawnCountdownMs > 0.0) {
+        m_boss3SpawnCountdownMs -= deltaMs;
+        if (m_boss3SpawnCountdownMs <= 0.0) {
+            spawnBoss3Enemy();
+            m_boss3SpawnCountdownMs += kBoss3SpawnDelayMs;
+        }
+    }
+
     if (m_pet != nullptr && m_pet->isActive() && myHero != nullptr) {
         m_pet->update(heroCenter(), deltaMs);
 
@@ -1681,20 +1702,13 @@ void MainWindow::updateBullets()
             }
 
             const bool isSkill2Hit = dynamic_cast<Skill2Bullet *>(bullet) != nullptr;
-            enemy->takeDamage(bullet->damage());
+            if (isSkill2Hit) {
+                applySkill2AreaDamage(bulletRect.center(), bullet->velocity(), bullet->damage());
+            } else {
+                enemy->takeDamage(bullet->damage());
+            }
             if (boomerangBullet != nullptr) {
                 boomerangBullet->registerEnemyHit(enemy);
-            }
-            if (isSkill2Hit) {
-                enemy->applyKnockback(bullet->velocity(), 95.0, worldWidth(), worldHeight());
-                Skill2Explosion explosion;
-                explosion.center = bulletRect.center();
-                m_skill2Explosions.push_back(explosion);
-                if (m_skill2HitPlayer != nullptr) {
-                    m_skill2HitPlayer->stop();
-                    m_skill2HitPlayer->setPosition(0);
-                    m_skill2HitPlayer->play();
-                }
             }
             if (boomerangBullet == nullptr) {
                 delete bullet;
@@ -1702,7 +1716,7 @@ void MainWindow::updateBullets()
                 bulletConsumed = true;
             }
 
-            if (enemy->isDead()) {
+            if (!isSkill2Hit && enemy->isDead()) {
                 handleEnemyDefeat(e);
             }
             if (boomerangBullet == nullptr) {
@@ -1998,8 +2012,18 @@ void MainWindow::spawnEnemy()
         return;
     }
 
-    const int typeIndex = static_cast<int>(QRandomGenerator::global()->bounded(5u));
-    const Enemy::Type type = static_cast<Enemy::Type>(typeIndex);
+    const QVector<Enemy::Type> spawnPool{
+        Enemy::Type::Scout,
+        Enemy::Type::Warrior,
+        Enemy::Type::Mage,
+        Enemy::Type::Tank,
+        Enemy::Type::Assassin,
+        Enemy::Type::Shooter,
+        Enemy::Type::Shooter,
+        Enemy::Type::Shooter
+    };
+    const Enemy::Type type =
+        spawnPool.at(static_cast<int>(QRandomGenerator::global()->bounded(static_cast<quint32>(spawnPool.size()))));
     const QVector<QPoint> laneSpawnPoints{
         QPoint(worldWidth() - 920, 520),
         QPoint(worldWidth() - 820, worldHeight() / 2 - 180),
@@ -2036,6 +2060,16 @@ void MainWindow::spawnBoss2Enemy()
     m_enemies.push_back(new Boss2Enemy(QPointF(boss2SpawnPoint)));
 }
 
+void MainWindow::spawnBoss3Enemy()
+{
+    if (myHero == nullptr) {
+        return;
+    }
+
+    const QPoint boss3SpawnPoint(worldWidth() - 1040, worldHeight() / 2 - 40);
+    m_enemies.push_back(new Enemy(Enemy::Type::Boss3, QPointF(boss3SpawnPoint)));
+}
+
 void MainWindow::updateEnemies()
 {
     if (myHero == nullptr) {
@@ -2048,15 +2082,26 @@ void MainWindow::updateEnemies()
     for (int i = m_enemies.size() - 1; i >= 0; --i) {
         Enemy *enemy = m_enemies.at(i);
         const bool isBoss = isBossEnemyType(enemy->type());
-        const qreal followDistance = isBoss ? 540.0 : 0.0;
+        const bool isRangedEnemy = isRangedEnemyType(enemy->type());
+        const bool isBoss3 = enemy->type() == Enemy::Type::Boss3;
+        const qreal followDistance = enemy->type() == Enemy::Type::Boss3 ? 780.0 : (isBoss ? 540.0 : 0.0);
         const qreal distanceToHero = QLineF(enemy->boundingRect().center(), center).length();
 
-        if (!isBoss && !enemy->reachesTarget(center)) {
+        if (!isBoss && !isRangedEnemy && !enemy->reachesTarget(center)) {
+            enemy->updateToward(center);
+        } else if (isRangedEnemy && !enemy->reachesTarget(center)) {
             enemy->updateToward(center);
         } else if (isBoss && distanceToHero > followDistance) {
             enemy->updateToward(center);
         } else if (enemy->tryAttackTarget(center, deltaMs)) {
-            if (isBoss) {
+            if (isBoss3) {
+                const QPointF attackOrigin = enemy->boundingRect().center();
+                m_enemyBullets.push_back(new EnemyBullet2(attackOrigin,
+                                                          center,
+                                                          enemy->attackDamage(),
+                                                          16.0,
+                                                          3200.0));
+            } else if (isBoss) {
                 const QPointF attackOrigin = enemy->boundingRect().center();
                 m_enemyBullets.push_back(new DragonTornadoBullet(attackOrigin,
                                                                 center,
@@ -2069,6 +2114,13 @@ void MainWindow::updateEnemies()
                 wave.rotationSeed = QRandomGenerator::global()->generateDouble() * 360.0;
                 wave.scale = 0.92 + QRandomGenerator::global()->generateDouble() * 0.28;
                 m_dragonAttackWaves.push_back(wave);
+            } else if (isRangedEnemy) {
+                const QPointF attackOrigin = enemy->boundingRect().center();
+                m_enemyBullets.push_back(new EnemyBullet(attackOrigin,
+                                                         center,
+                                                         enemy->attackDamage(),
+                                                         14.0,
+                                                         2600.0));
             } else {
                 myHero->takeDamage(enemy->attackDamage());
             }
@@ -2084,25 +2136,25 @@ void MainWindow::updateEnemies()
         }
     }
 
-    resolveBossOverlap();
+    resolveEnemyOverlap();
 }
 
-void MainWindow::resolveBossOverlap()
+void MainWindow::resolveEnemyOverlap()
 {
     for (int i = 0; i < m_enemies.size(); ++i) {
-        Enemy *bossA = m_enemies.at(i);
-        if (bossA == nullptr || !isBossEnemyType(bossA->type())) {
+        Enemy *enemyA = m_enemies.at(i);
+        if (enemyA == nullptr || enemyA->isDead()) {
             continue;
         }
 
         for (int j = i + 1; j < m_enemies.size(); ++j) {
-            Enemy *bossB = m_enemies.at(j);
-            if (bossB == nullptr || !isBossEnemyType(bossB->type())) {
+            Enemy *enemyB = m_enemies.at(j);
+            if (enemyB == nullptr || enemyB->isDead()) {
                 continue;
             }
 
-            QRectF rectA = bossA->boundingRect();
-            QRectF rectB = bossB->boundingRect();
+            QRectF rectA = enemyA->boundingRect();
+            QRectF rectB = enemyB->boundingRect();
             if (!rectA.intersects(rectB)) {
                 continue;
             }
@@ -2118,10 +2170,16 @@ void MainWindow::resolveBossOverlap()
 
             const QPointF direction(separation.x() / separationLength,
                                     separation.y() / separationLength);
-            const qreal overlapX = std::max<qreal>(0.0, std::min(rectA.right(), rectB.right()) - std::max(rectA.left(), rectB.left()));
-            const qreal overlapY = std::max<qreal>(0.0, std::min(rectA.bottom(), rectB.bottom()) - std::max(rectA.top(), rectB.top()));
-            const qreal pushDistance = std::max<qreal>(10.0, std::max(overlapX, overlapY) * 0.52);
-            const QPointF pushOffset = direction * pushDistance;
+            const qreal radiusA = std::max(rectA.width(), rectA.height()) * 0.5;
+            const qreal radiusB = std::max(rectB.width(), rectB.height()) * 0.5;
+            const qreal desiredSpacing = (radiusA + radiusB) * 0.92;
+            const qreal penetration = desiredSpacing - separationLength;
+            if (penetration <= 0.0) {
+                continue;
+            }
+
+            const qreal softPushDistance = std::clamp(penetration * 0.35, 2.0, 12.0);
+            const QPointF pushOffset = direction * softPushDistance;
 
             rectA.translate(-pushOffset.x() * 0.5, -pushOffset.y() * 0.5);
             rectB.translate(pushOffset.x() * 0.5, pushOffset.y() * 0.5);
@@ -2131,10 +2189,10 @@ void MainWindow::resolveBossOverlap()
             const qreal clampedBX = std::clamp(rectB.left(), 0.0, std::max(0, worldWidth()) - rectB.width() * 1.0);
             const qreal clampedBY = std::clamp(rectB.top(), 0.0, std::max(0, worldHeight()) - rectB.height() * 1.0);
 
-            bossA->setCenter(QPointF(clampedAX + rectA.width() / 2.0,
-                                     clampedAY + rectA.height() / 2.0));
-            bossB->setCenter(QPointF(clampedBX + rectB.width() / 2.0,
-                                     clampedBY + rectB.height() / 2.0));
+            enemyA->setCenter(QPointF(clampedAX + rectA.width() / 2.0,
+                                      clampedAY + rectA.height() / 2.0));
+            enemyB->setCenter(QPointF(clampedBX + rectB.width() / 2.0,
+                                      clampedBY + rectB.height() / 2.0));
         }
     }
 }
@@ -2283,6 +2341,46 @@ void MainWindow::castSkill2()
     const QPointF target = origin + m_skillDirection * 480.0;
     m_bullets.push_back(new Skill2Bullet(origin, target, 20.0, 1200.0));
     m_skill2CooldownRemainingMs = kSkill2CooldownMs;
+}
+
+void MainWindow::applySkill2AreaDamage(const QPointF &impactCenter, const QPointF &impactDirection, int damage)
+{
+    QVector<int> defeatedEnemyIndices;
+    defeatedEnemyIndices.reserve(m_enemies.size());
+
+    for (int i = 0; i < m_enemies.size(); ++i) {
+        Enemy *enemy = m_enemies.at(i);
+        if (enemy == nullptr || enemy->isDead()) {
+            continue;
+        }
+
+        const QRectF enemyRect = enemy->boundingRect();
+        const qreal enemyRadius = std::max(enemyRect.width(), enemyRect.height()) / 2.0;
+        const qreal distanceToImpact = QLineF(impactCenter, enemyRect.center()).length();
+        if (distanceToImpact > kSkill2DamageRadius + enemyRadius) {
+            continue;
+        }
+
+        enemy->takeDamage(damage);
+        enemy->applyKnockback(impactDirection, 95.0, worldWidth(), worldHeight());
+        if (enemy->isDead()) {
+            defeatedEnemyIndices.push_back(i);
+        }
+    }
+
+    Skill2Explosion explosion;
+    explosion.center = impactCenter;
+    m_skill2Explosions.push_back(explosion);
+
+    if (m_skill2HitPlayer != nullptr) {
+        m_skill2HitPlayer->stop();
+        m_skill2HitPlayer->setPosition(0);
+        m_skill2HitPlayer->play();
+    }
+
+    for (int i = defeatedEnemyIndices.size() - 1; i >= 0; --i) {
+        handleEnemyDefeat(defeatedEnemyIndices.at(i));
+    }
 }
 
 void MainWindow::castSkill3()
@@ -2590,22 +2688,35 @@ void MainWindow::drawHeroHealthBar(QPainter &painter) const
         return;
     }
 
-    const int barX = myHero->Hero_x + (HERO_WIDTH - kHeroHpBarWidth) / 2;
-    const int barY = myHero->Hero_y - 28;
-    const int expBarX = myHero->Hero_x + (HERO_WIDTH - kHeroExpBarWidth) / 2;
-    const int expBarY = barY - 14;
-    const QRect barRect(barX, barY, kHeroHpBarWidth, kHeroHpBarHeight);
-    const QRect expBarRect(expBarX, expBarY, kHeroExpBarWidth, kHeroExpBarHeight);
-    const QRect fillRect(barX + 14,
-                         barY + 6,
-                         static_cast<int>((kHeroHpBarWidth - 28) * std::clamp(myHero->hpRatio(), 0.0, 1.0)),
-                         kHeroHpBarHeight - 12);
+    const int worldBarX = myHero->Hero_x + (HERO_WIDTH - 170) / 2;
+    const int worldBarY = myHero->Hero_y - 28;
+    const int expBarX = myHero->Hero_x + (HERO_WIDTH - 156) / 2;
+    const int expBarY = worldBarY - 14;
+    const QRect worldBarRect(worldBarX, worldBarY, 170, 26);
+    const QRect expBarRect(expBarX, expBarY, 156, 12);
+    const QRect worldFillRect(worldBarX + 14,
+                              worldBarY + 6,
+                              static_cast<int>((170 - 28) * std::clamp(myHero->hpRatio(), 0.0, 1.0)),
+                              26 - 12);
     const QRect expFillRect(expBarX + 3,
                             expBarY + 3,
-                            static_cast<int>((kHeroExpBarWidth - 6) * std::clamp(myHero->experienceRatio(), 0.0, 1.0)),
-                            kHeroExpBarHeight - 6);
+                            static_cast<int>((156 - 6) * std::clamp(myHero->experienceRatio(), 0.0, 1.0)),
+                            12 - 6);
+    const QPointF camera = cameraOffset();
+    const QRect panelRect(static_cast<int>(18 + camera.x()),
+                          static_cast<int>(18 + camera.y()),
+                          430,
+                          92);
+    const QRect labelRect(panelRect.left() + 18, panelRect.top() + 10, panelRect.width() - 36, 24);
+    const QRect barRect(panelRect.left() + 18, panelRect.top() + 38, kHeroHpBarWidth, kHeroHpBarHeight);
+    const QRect fillRect(barRect.left() + 5,
+                         barRect.top() + 5,
+                         static_cast<int>((barRect.width() - 10) * std::clamp(myHero->hpRatio(), 0.0, 1.0)),
+                         barRect.height() - 10);
+    const QRect valueRect(barRect.right() + 14, barRect.top() - 1, 52, barRect.height());
 
     painter.save();
+    painter.setRenderHint(QPainter::Antialiasing, true);
     painter.setPen(Qt::NoPen);
 
     painter.setBrush(QColor(16, 34, 78, 220));
@@ -2626,13 +2737,43 @@ void MainWindow::drawHeroHealthBar(QPainter &painter) const
 
     painter.setPen(Qt::NoPen);
     painter.setBrush(QColor(38, 54, 38, 210));
-    painter.drawRoundedRect(barRect.adjusted(10, 4, -10, -4), 8, 8);
+    painter.drawRoundedRect(worldBarRect.adjusted(10, 4, -10, -4), 8, 8);
     painter.setBrush(QColor(74, 210, 88, 230));
-    painter.drawRoundedRect(fillRect, 6, 6);
+    painter.drawRoundedRect(worldFillRect, 6, 6);
 
     if (!m_heroBloodPixmap.isNull()) {
-        painter.drawPixmap(barRect, m_heroBloodPixmap);
+        painter.drawPixmap(worldBarRect, m_heroBloodPixmap);
     }
+
+    painter.setBrush(QColor(12, 14, 18, 205));
+    painter.drawRoundedRect(panelRect, 18, 18);
+
+    painter.setBrush(QColor(75, 18, 24, 225));
+    painter.drawRoundedRect(barRect, 14, 14);
+
+    painter.setBrush(QColor(224, 36, 48, 235));
+    painter.drawRoundedRect(fillRect, 10, 10);
+
+    painter.setPen(QColor(255, 255, 255, 235));
+    QFont labelFont = painter.font();
+    labelFont.setBold(true);
+    labelFont.setPointSize(11);
+    painter.setFont(labelFont);
+    painter.drawText(labelRect, Qt::AlignLeft | Qt::AlignVCenter, QStringLiteral("英雄生命值"));
+
+    QFont hpFont = painter.font();
+    hpFont.setBold(true);
+    hpFont.setPointSize(14);
+    painter.setFont(hpFont);
+    painter.drawText(barRect, Qt::AlignCenter, QStringLiteral("%1 / %2").arg(myHero->hp()).arg(myHero->maxHp()));
+
+    QFont valueFont = painter.font();
+    valueFont.setBold(true);
+    valueFont.setPointSize(16);
+    painter.setFont(valueFont);
+    painter.setPen(QColor(255, 112, 112, 245));
+    painter.drawText(valueRect, Qt::AlignLeft | Qt::AlignVCenter, QString::number(myHero->hp()));
+
     painter.restore();
 }
 

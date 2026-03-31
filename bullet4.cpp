@@ -22,3 +22,8 @@ int Bullet4::damage() const
 {
     return 56;
 }
+
+bool Bullet4::rotatesToVelocity() const
+{
+    return true;
+}

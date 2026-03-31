@@ -17,7 +17,7 @@ public:
     Bullet(const QPointF &startPos,
            const QPointF &targetPos,
            qreal speed = 18.0,
-           qreal maxDistance = 630.0,
+           qreal maxDistance = 650.0,
            const QSize &size = defaultSize());
     virtual ~Bullet() = default;
 
@@ -36,6 +36,7 @@ protected:
            qreal speed,
            qreal maxDistance,
            const QSize &size);
+    virtual bool rotatesToVelocity() const;
 
 private:
     QPointF m_pos;

@@ -17,8 +17,10 @@ public:
         Mage,
         Tank,
         Assassin,
+        Shooter,
         Dragon,
-        Boss2
+        Boss2,
+        Boss3
     };
 
     Enemy(Type type, const QPointF &startPos);
