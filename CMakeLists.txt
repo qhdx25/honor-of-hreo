@@ -20,6 +20,18 @@ configure_file(
     @ONLY
 )
 
+if(WIN32)
+    file(TO_NATIVE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/res/icon.ico" APP_ICON_ICO_PATH)
+endif()
+
+if(WIN32 AND NOT MINGW)
+    configure_file(
+        ${CMAKE_CURRENT_SOURCE_DIR}/app_icon.rc.in
+        ${CMAKE_CURRENT_BINARY_DIR}/generated/app_icon.rc
+        @ONLY
+    )
+endif()
+
 find_package(QT NAMES Qt6 Qt5 REQUIRED COMPONENTS Widgets Multimedia MultimediaWidgets)
 find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Widgets Multimedia MultimediaWidgets)
 
@@ -86,6 +98,12 @@ endif()
 target_include_directories(honor-of-hero PRIVATE
     ${CMAKE_CURRENT_BINARY_DIR}/generated
 )
+
+if(WIN32 AND NOT MINGW)
+    target_sources(honor-of-hero PRIVATE
+        ${CMAKE_CURRENT_BINARY_DIR}/generated/app_icon.rc
+    )
+endif()
 
 if(PROJECT_RESOURCE_FILES)
     set_source_files_properties(${PROJECT_RESOURCE_FILES} PROPERTIES HEADER_FILE_ONLY TRUE)
