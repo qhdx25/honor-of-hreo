@@ -10,9 +10,9 @@ public:
 
     EnemyBullet(const QPointF &startPos,
                 const QPointF &targetPos,
-                int damage = 22,
-                qreal speed = 14.0,
-                qreal maxDistance = 2600.0);
+                int damage = GameConfig::kEnemyBulletDefaultDamage,
+                qreal speed = GameConfig::kEnemyBulletDefaultSpeed,
+                qreal maxDistance = GameConfig::kEnemyBulletDefaultMaxDistance);
 
     int damage() const override;
 
@@ -20,7 +20,7 @@ protected:
     bool rotatesToVelocity() const override;
 
 private:
-    int m_damage = 22;
+    int m_damage = GameConfig::kEnemyBulletDefaultDamage;
 };
 
 #endif // ENEMYBULLET_H

@@ -6,13 +6,9 @@
 #include <QRadialGradient>
 #include <cmath>
 
-namespace {
-constexpr qreal kPi = 3.14159265358979323846;
-}
-
 QSize DragonTornadoBullet::defaultSize()
 {
-    return QSize(120, 120);
+    return QSize(GameConfig::kDragonTornadoWidth, GameConfig::kDragonTornadoHeight);
 }
 
 DragonTornadoBullet::DragonTornadoBullet(const QPointF &startPos,
@@ -57,8 +53,8 @@ void DragonTornadoBullet::paint(QPainter &painter) const
     painter.save();
     painter.setRenderHint(QPainter::Antialiasing, true);
 
-    const qreal travelAngleDegrees = std::atan2(m_velocity.y(), m_velocity.x()) * 180.0 / kPi;
-    const qreal spinRadians = m_rotationDegrees * kPi / 180.0;
+    const qreal travelAngleDegrees = std::atan2(m_velocity.y(), m_velocity.x()) * 180.0 / GameConfig::kPi;
+    const qreal spinRadians = m_rotationDegrees * GameConfig::kPi / 180.0;
     const qreal pulse = 0.86 + 0.14 * std::sin(m_elapsedMs / 110.0);
 
     painter.translate(m_pos);
@@ -153,7 +149,7 @@ QVector<DragonTornadoBullet::ParticleSeed> DragonTornadoBullet::buildParticles()
 
     for (int i = 0; i < 18; ++i) {
         ParticleSeed particle;
-        particle.angleRadians = QRandomGenerator::global()->generateDouble() * kPi * 2.0;
+        particle.angleRadians = QRandomGenerator::global()->generateDouble() * GameConfig::kPi * 2.0;
         particle.orbitRadius = 12.0 + QRandomGenerator::global()->generateDouble() * 26.0;
         particle.riseOffset = QRandomGenerator::global()->generateDouble();
         particle.size = 3.5 + QRandomGenerator::global()->generateDouble() * 4.5;

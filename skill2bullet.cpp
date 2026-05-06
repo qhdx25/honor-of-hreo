@@ -21,5 +21,5 @@ Skill2Bullet::Skill2Bullet(const QPointF &startPos,
 
 int Skill2Bullet::damage() const
 {
-    return Bullet::damage() * 4;
+    return Bullet::damage() * GameConfig::kSkill2BulletDamageMultiplier;
 }

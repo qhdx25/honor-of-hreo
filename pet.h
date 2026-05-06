@@ -1,6 +1,8 @@
 #ifndef PET_H
 #define PET_H
 
+#include "config.h"
+
 #include <QPointF>
 #include <QPixmap>
 #include <QRectF>
@@ -26,7 +28,7 @@ public:
 private:
     QPointF m_center;
     QPixmap m_pixmap;
-    QSize m_size = QSize(96, 96);
+    QSize m_size = QSize(GameConfig::kPetWidth, GameConfig::kPetHeight);
     qreal m_orbitAngleRadians = 0.0;
     qreal m_attackCooldownMs = 0.0;
     bool m_active = false;

@@ -1,9 +1,6 @@
 #include "enemy.h"
-#include "assetpaths.h"
+#include "config.h"
 
-#include <QCoreApplication>
-#include <QDir>
-#include <QFileInfo>
 #include <QLineF>
 #include <QPainter>
 #include <QPixmap>
@@ -12,14 +9,14 @@
 #include <cmath>
 
 namespace {
+std::size_t enemyTypeIndex(Enemy::Type type)
+{
+    return static_cast<std::size_t>(type);
+}
+
 QString assetPath(const QString &fileName)
 {
-    const QString packagedPath = QDir(QCoreApplication::applicationDirPath()).filePath("res/" + fileName);
-    if (QFileInfo::exists(packagedPath)) {
-        return packagedPath;
-    }
-
-    return QString::fromUtf8(kSourceAssetDir) + "/" + fileName;
+    return QStringLiteral("D:/develop/Qtproject/honor-of-hero/res/") + fileName;
 }
 
 bool isBossEnemyType(Enemy::Type type)
@@ -34,151 +31,33 @@ bool isRangedEnemyType(Enemy::Type type)
 
 QSize enemySizeForType(Enemy::Type type)
 {
-    switch (type) {
-    case Enemy::Type::Scout:
-        return QSize(92, 92);
-    case Enemy::Type::Warrior:
-        return QSize(104, 104);
-    case Enemy::Type::Mage:
-        return QSize(124, 124);
-    case Enemy::Type::Tank:
-        return QSize(104, 104);
-    case Enemy::Type::Assassin:
-        return QSize(120, 120);
-    case Enemy::Type::Shooter:
-        return QSize(132, 132);
-    case Enemy::Type::Dragon:
-    case Enemy::Type::Boss2:
-    case Enemy::Type::Boss3:
-        return QSize(240, 240);
-    }
-
-    return QSize(48, 48);
+    const std::size_t index = enemyTypeIndex(type);
+    return QSize(GameConfig::kEnemyWidthByType.at(index), GameConfig::kEnemyHeightByType.at(index));
 }
 
 int enemyMaxHpForType(Enemy::Type type)
 {
-    switch (type) {
-    case Enemy::Type::Scout:
-        return 60;
-    case Enemy::Type::Warrior:
-        return 110;
-    case Enemy::Type::Mage:
-        return 80;
-    case Enemy::Type::Tank:
-        return 160;
-    case Enemy::Type::Assassin:
-        return 70;
-    case Enemy::Type::Shooter:
-        return 120;
-    case Enemy::Type::Dragon:
-    case Enemy::Type::Boss2:
-        return 1960;
-    case Enemy::Type::Boss3:
-        return 860;
-    }
-
-    return 100;
+    return GameConfig::kEnemyMaxHpByType.at(enemyTypeIndex(type));
 }
 
 qreal enemySpeedForType(Enemy::Type type)
 {
-    switch (type) {
-    case Enemy::Type::Scout:
-        return 4.6;
-    case Enemy::Type::Warrior:
-        return 3.6;
-    case Enemy::Type::Mage:
-        return 3.2;
-    case Enemy::Type::Tank:
-        return 2.4;
-    case Enemy::Type::Assassin:
-        return 5.2;
-    case Enemy::Type::Shooter:
-        return 2.9;
-    case Enemy::Type::Dragon:
-    case Enemy::Type::Boss2:
-        return 2.5;
-    case Enemy::Type::Boss3:
-        return 2.1;
-    }
-
-    return 3.5;
+    return GameConfig::kEnemySpeedByType.at(enemyTypeIndex(type));
 }
 
 qreal enemyReachRadiusForType(Enemy::Type type)
 {
-    switch (type) {
-    case Enemy::Type::Scout:
-        return 18.0;
-    case Enemy::Type::Warrior:
-        return 22.0;
-    case Enemy::Type::Mage:
-        return 20.0;
-    case Enemy::Type::Tank:
-        return 26.0;
-    case Enemy::Type::Assassin:
-        return 19.0;
-    case Enemy::Type::Shooter:
-        return 720.0;
-    case Enemy::Type::Dragon:
-    case Enemy::Type::Boss2:
-        return 540.0;
-    case Enemy::Type::Boss3:
-        return 860.0;
-    }
-
-    return 20.0;
+    return GameConfig::kEnemyReachRadiusByType.at(enemyTypeIndex(type));
 }
 
 int enemyAttackDamageForType(Enemy::Type type)
 {
-    switch (type) {
-    case Enemy::Type::Scout:
-        return 8;
-    case Enemy::Type::Warrior:
-        return 14;
-    case Enemy::Type::Mage:
-        return 12;
-    case Enemy::Type::Tank:
-        return 18;
-    case Enemy::Type::Assassin:
-        return 16;
-    case Enemy::Type::Shooter:
-        return 22;
-    case Enemy::Type::Dragon:
-    case Enemy::Type::Boss2:
-        return 52;
-    case Enemy::Type::Boss3:
-        return 36;
-    }
-
-    return 10;
+    return GameConfig::kEnemyAttackDamageByType.at(enemyTypeIndex(type));
 }
 
 qreal enemyAttackIntervalForType(Enemy::Type type)
 {
-    switch (type) {
-    case Enemy::Type::Scout:
-        return 780.0;
-    case Enemy::Type::Warrior:
-        return 950.0;
-    case Enemy::Type::Mage:
-        return 1100.0;
-    case Enemy::Type::Tank:
-        return 1250.0;
-    case Enemy::Type::Assassin:
-        return 720.0;
-    case Enemy::Type::Shooter:
-        return 1650.0;
-    case Enemy::Type::Dragon:
-    case Enemy::Type::Boss2:
-        return 1750.0;
-    case Enemy::Type::Boss3:
-        return 325.0;
-    }
-
-    return 1000.0;
+    return GameConfig::kEnemyAttackIntervalMsByType.at(enemyTypeIndex(type));
 }
 
 const QPixmap &enemySpriteForType(Enemy::Type type)
@@ -312,11 +191,11 @@ void Enemy::applyKnockback(const QPointF &direction, qreal distance, int worldWi
 
     qreal adjustedDistance = distance;
     if (isBossEnemyType(m_type)) {
-        adjustedDistance *= 0.4;
+        adjustedDistance *= GameConfig::kBossKnockbackMultiplier;
     } else if (m_type == Type::Tank) {
-        adjustedDistance *= 0.65;
+        adjustedDistance *= GameConfig::kTankKnockbackMultiplier;
     } else if (isRangedEnemyType(m_type)) {
-        adjustedDistance *= 0.8;
+        adjustedDistance *= GameConfig::kRangedEnemyKnockbackMultiplier;
     }
 
     const QPointF normalizedDirection(direction.x() / length, direction.y() / length);

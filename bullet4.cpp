@@ -2,7 +2,7 @@
 
 QSize Bullet4::defaultSize()
 {
-    return QSize(132, 44);
+    return QSize(GameConfig::kTowerBulletWidth, GameConfig::kTowerBulletHeight);
 }
 
 Bullet4::Bullet4(const QPointF &startPos,
@@ -20,10 +20,11 @@ Bullet4::Bullet4(const QPointF &startPos,
 
 int Bullet4::damage() const
 {
-    return 56;
+    return GameConfig::kTowerBulletDamage;
 }
 
 bool Bullet4::rotatesToVelocity() const
 {
     return true;
 }
+

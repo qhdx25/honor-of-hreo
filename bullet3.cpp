@@ -2,7 +2,7 @@
 
 QSize Bullet3::defaultSize()
 {
-    return QSize(96, 96);
+    return QSize(GameConfig::kCrystalBulletWidth, GameConfig::kCrystalBulletHeight);
 }
 
 Bullet3::Bullet3(const QPointF &startPos,
@@ -20,5 +20,6 @@ Bullet3::Bullet3(const QPointF &startPos,
 
 int Bullet3::damage() const
 {
-    return 84;
+    return GameConfig::kCrystalBulletDamage;
 }
+

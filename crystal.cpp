@@ -1,10 +1,5 @@
 #include "crystal.h"
 
-#include "assetpaths.h"
-
-#include <QCoreApplication>
-#include <QDir>
-#include <QFileInfo>
 #include <QPainter>
 #include <QString>
 #include <algorithm>
@@ -12,28 +7,20 @@
 namespace {
 QString assetPath(const QString &fileName)
 {
-    const QString packagedPath = QDir(QCoreApplication::applicationDirPath()).filePath("res/" + fileName);
-    if (QFileInfo::exists(packagedPath)) {
-        return packagedPath;
-    }
-
-    return QString::fromUtf8(kSourceAssetDir) + "/" + fileName;
+    return QStringLiteral("D:/develop/Qtproject/honor-of-hero/res/") + fileName;
 }
-
-constexpr qreal kCrystalAttackIntervalMs = 1800.0;
-constexpr int kCrystalHpBarHeight = 12;
 }
 
 Crystal::Crystal()
     : m_pixmap(assetPath("crystal.png"))
 {
 }
-
+//设置水晶中心点坐标
 void Crystal::setCenter(const QPointF &center)
 {
     m_center = center;
 }
-
+//获取水晶中心点
 QPointF Crystal::center() const
 {
     return m_center;
@@ -65,7 +52,7 @@ void Crystal::paint(QPainter &painter) const
     const QRectF barBgRect(bodyRect.left() + 10.0,
                            bodyRect.top() - 22.0,
                            bodyRect.width() - 20.0,
-                           kCrystalHpBarHeight);
+                           GameConfig::kCrystalHpBarHeight);
     const QRectF barFillRect(barBgRect.left(),
                              barBgRect.top(),
                              barBgRect.width() * std::clamp(hpRatio(), 0.0, 1.0),
@@ -118,7 +105,7 @@ bool Crystal::tryShootAt(const QPointF &targetPos, qreal deltaMs)
         return false;
     }
 
-    m_attackCooldownMs = kCrystalAttackIntervalMs;
+    m_attackCooldownMs = GameConfig::kCrystalAttackIntervalMs;
     return true;
 }
 

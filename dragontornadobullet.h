@@ -24,8 +24,8 @@ public:
     DragonTornadoBullet(const QPointF &startPos,
                         const QPointF &targetPos,
                         int damage,
-                        qreal speed = 11.5,
-                        qreal maxDistance = 980.0);
+                        qreal speed = GameConfig::kDragonTornadoSpeed,
+                        qreal maxDistance = GameConfig::kDragonTornadoDistance);
 
     void update() override;
     int damage() const override;
@@ -42,10 +42,10 @@ private:
     QSize m_size;
     QVector<ParticleSeed> m_particles;
     qreal m_distanceTraveled = 0.0;
-    qreal m_maxDistance = 980.0;
+    qreal m_maxDistance = GameConfig::kDragonTornadoDistance;
     qreal m_rotationDegrees = 0.0;
     qreal m_elapsedMs = 0.0;
-    int m_damage = 52;
+    int m_damage = GameConfig::kDragonTornadoDefaultDamage;
 };
 
 #endif // DRAGONTORNADOBULLET_H

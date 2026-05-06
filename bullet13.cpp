@@ -2,7 +2,7 @@
 
 QSize Bullet13::defaultSize()
 {
-    return QSize(120, 34);
+    return QSize(GameConfig::kBulletWheelBulletWidth, GameConfig::kBulletWheelBulletHeight);
 }
 
 Bullet13::Bullet13(const QPointF &startPos,
@@ -15,5 +15,6 @@ Bullet13::Bullet13(const QPointF &startPos,
 
 int Bullet13::damage() const
 {
-    return 30;
+    return GameConfig::kBulletWheelBulletDamage;
 }
+

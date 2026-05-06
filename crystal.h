@@ -1,13 +1,14 @@
 #ifndef CRYSTAL_H
 #define CRYSTAL_H
 
+#include "config.h"
+
 #include <QPointF>
 #include <QPixmap>
 #include <QRectF>
 #include <QSize>
 
 class QPainter;
-
 class Crystal
 {
 public:
@@ -23,13 +24,12 @@ public:
     bool isDead() const;
     bool tryShootAt(const QPointF &targetPos, qreal deltaMs);
     qreal hpRatio() const;
-
 private:
     QPointF m_center;
     QPixmap m_pixmap;
-    QSize m_size = QSize(240, 240);
-    int m_maxHp = 1800;
-    int m_hp = 1800;
+    QSize m_size = QSize(GameConfig::kCrystalWidth, GameConfig::kCrystalHeight);
+    int m_maxHp = GameConfig::kCrystalMaxHp;
+    int m_hp = GameConfig::kCrystalMaxHp;
     qreal m_attackCooldownMs = 0.0;
 };
 

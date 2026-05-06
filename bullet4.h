@@ -10,8 +10,8 @@ public:
 
     Bullet4(const QPointF &startPos,
             const QPointF &targetPos,
-            qreal speed = 18.0,
-            qreal maxDistance = 1500.0);
+            qreal speed = GameConfig::kTowerBulletSpeed,
+            qreal maxDistance = GameConfig::kTowerBulletDistance);
 
     int damage() const override;
 
@@ -20,3 +20,4 @@ protected:
 };
 
 #endif // BULLET4_H
+

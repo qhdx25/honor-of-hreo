@@ -2,7 +2,7 @@
 
 QSize EnemyBullet2::defaultSize()
 {
-    return QSize(132, 44);
+    return QSize(GameConfig::kEnemyBullet2Width, GameConfig::kEnemyBullet2Height);
 }
 
 EnemyBullet2::EnemyBullet2(const QPointF &startPos,

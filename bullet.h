@@ -1,6 +1,8 @@
 #ifndef BULLET_H
 #define BULLET_H
 
+#include "config.h"
+
 #include <QPointF>
 #include <QPixmap>
 #include <QRectF>
@@ -16,8 +18,8 @@ public:
 
     Bullet(const QPointF &startPos,
            const QPointF &targetPos,
-           qreal speed = 18.0,
-           qreal maxDistance = 650.0,
+           qreal speed = GameConfig::kBulletDefaultSpeed,
+           qreal maxDistance = GameConfig::kBulletDefaultMaxDistance,
            const QSize &size = defaultSize());
     virtual ~Bullet() = default;
 
@@ -43,9 +45,9 @@ private:
     QPointF m_velocity;
     QPixmap m_pixmap;
     QSize m_size;
-    qreal m_speed = 18.0;
+    qreal m_speed = GameConfig::kBulletDefaultSpeed;
     qreal m_distanceTraveled = 0.0;
-    qreal m_maxDistance = 360.0;
+    qreal m_maxDistance = GameConfig::kBulletDefaultMaxDistance;
 };
 
 #endif // BULLET_H

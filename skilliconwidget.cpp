@@ -6,7 +6,7 @@
 #include <QTimer>
 #include <algorithm>
 #include <cmath>
-
+//技能图标控件
 SkillIconWidget::SkillIconWidget(QWidget *parent)
     : QWidget(parent)
 {
@@ -15,7 +15,7 @@ SkillIconWidget::SkillIconWidget(QWidget *parent)
     setAutoFillBackground(false);
     setFocusPolicy(Qt::NoFocus);
     setMouseTracking(true);
-
+//创建定时器
     m_timer = new QTimer(this);
     m_timer->setInterval(180);
     QObject::connect(m_timer, &QTimer::timeout, this, [this]() { onTimeout(); });

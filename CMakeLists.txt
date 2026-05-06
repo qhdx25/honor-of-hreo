@@ -14,12 +14,6 @@ file(GLOB_RECURSE PROJECT_RESOURCE_FILES CONFIGURE_DEPENDS
     "${CMAKE_CURRENT_SOURCE_DIR}/res/*"
 )
 
-configure_file(
-    ${CMAKE_CURRENT_SOURCE_DIR}/assetpaths.h.in
-    ${CMAKE_CURRENT_BINARY_DIR}/generated/assetpaths.h
-    @ONLY
-)
-
 if(WIN32)
     file(TO_NATIVE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/res/icon.ico" APP_ICON_ICO_PATH)
 endif()
@@ -94,10 +88,6 @@ else()
         )
     endif()
 endif()
-
-target_include_directories(honor-of-hero PRIVATE
-    ${CMAKE_CURRENT_BINARY_DIR}/generated
-)
 
 if(WIN32 AND NOT MINGW)
     target_sources(honor-of-hero PRIVATE

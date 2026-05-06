@@ -1,10 +1,5 @@
 #include "tower.h"
 
-#include "assetpaths.h"
-
-#include <QCoreApplication>
-#include <QDir>
-#include <QFileInfo>
 #include <QLineF>
 #include <QPainter>
 #include <QString>
@@ -13,16 +8,8 @@
 namespace {
 QString assetPath(const QString &fileName)
 {
-    const QString packagedPath = QDir(QCoreApplication::applicationDirPath()).filePath("res/" + fileName);
-    if (QFileInfo::exists(packagedPath)) {
-        return packagedPath;
-    }
-
-    return QString::fromUtf8(kSourceAssetDir) + "/" + fileName;
+    return QStringLiteral("D:/develop/Qtproject/honor-of-hero/res/") + fileName;
 }
-
-constexpr qreal kTowerAttackIntervalMs = 2200.0;
-constexpr int kTowerHpBarHeight = 10;
 }
 
 Tower::Tower()
@@ -66,7 +53,7 @@ void Tower::paint(QPainter &painter) const
     const QRectF barBgRect(bodyRect.left() + 8.0,
                            bodyRect.top() - 18.0,
                            bodyRect.width() - 16.0,
-                           kTowerHpBarHeight);
+                           GameConfig::kTowerHpBarHeight);
     const QRectF barFillRect(barBgRect.left(),
                              barBgRect.top(),
                              barBgRect.width() * std::clamp(hpRatio(), 0.0, 1.0),
@@ -119,7 +106,7 @@ bool Tower::tryShootAt(const QPointF &targetPos, qreal deltaMs)
         return false;
     }
 
-    m_attackCooldownMs = kTowerAttackIntervalMs;
+    m_attackCooldownMs = GameConfig::kTowerAttackIntervalMs;
     return true;
 }
 

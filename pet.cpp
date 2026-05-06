@@ -1,10 +1,5 @@
 #include "pet.h"
 
-#include "assetpaths.h"
-
-#include <QCoreApplication>
-#include <QDir>
-#include <QFileInfo>
 #include <QPainter>
 #include <QString>
 #include <algorithm>
@@ -13,17 +8,8 @@
 namespace {
 QString assetPath(const QString &fileName)
 {
-    const QString packagedPath = QDir(QCoreApplication::applicationDirPath()).filePath("res/" + fileName);
-    if (QFileInfo::exists(packagedPath)) {
-        return packagedPath;
-    }
-
-    return QString::fromUtf8(kSourceAssetDir) + "/" + fileName;
+    return QStringLiteral("D:/develop/Qtproject/honor-of-hero/res/") + fileName;
 }
-
-constexpr qreal kPetOrbitRadius = 132.0;
-constexpr qreal kPetOrbitAngularSpeed = 0.0038;
-constexpr qreal kPetAttackIntervalMs = 1000.0;
 }
 
 Pet::Pet()
@@ -36,7 +22,7 @@ void Pet::summon(const QPointF &heroCenter)
     m_active = true;
     m_orbitAngleRadians = 0.0;
     m_attackCooldownMs = 0.0;
-    m_center = heroCenter + QPointF(kPetOrbitRadius, -32.0);
+    m_center = heroCenter + QPointF(GameConfig::kPetOrbitRadius, GameConfig::kPetSummonOffsetY);
 }
 
 void Pet::dismiss()
@@ -56,9 +42,11 @@ void Pet::update(const QPointF &heroCenter, qreal deltaMs)
         return;
     }
 
-    m_orbitAngleRadians = std::fmod(m_orbitAngleRadians + deltaMs * kPetOrbitAngularSpeed, 6.28318530717958647692);
-    m_center = heroCenter + QPointF(std::cos(m_orbitAngleRadians) * kPetOrbitRadius,
-                                    std::sin(m_orbitAngleRadians) * (kPetOrbitRadius * 0.68) - 26.0);
+    m_orbitAngleRadians = std::fmod(m_orbitAngleRadians + deltaMs * GameConfig::kPetOrbitAngularSpeed,
+                                    GameConfig::kPi * 2.0);
+    m_center = heroCenter + QPointF(std::cos(m_orbitAngleRadians) * GameConfig::kPetOrbitRadius,
+                                    std::sin(m_orbitAngleRadians) * (GameConfig::kPetOrbitRadius * GameConfig::kPetOrbitVerticalScale)
+                                        + GameConfig::kPetOrbitVerticalOffset);
 }
 
 bool Pet::tryShootAt(const QPointF &targetPos, qreal deltaMs)
@@ -73,7 +61,7 @@ bool Pet::tryShootAt(const QPointF &targetPos, qreal deltaMs)
         return false;
     }
 
-    m_attackCooldownMs = kPetAttackIntervalMs;
+    m_attackCooldownMs = GameConfig::kPetAttackIntervalMs;
     return true;
 }
 

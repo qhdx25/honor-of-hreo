@@ -10,10 +10,11 @@ public:
 
     Bullet8(const QPointF &startPos,
             const QPointF &targetPos,
-            qreal speed = 20.0,
-            qreal maxDistance = 1100.0);
+            qreal speed = GameConfig::kBulletWheelBulletDefaultSpeed,
+            qreal maxDistance = GameConfig::kBulletWheelBulletMaxDistance);
 
     int damage() const override;
 };
 
 #endif // BULLET8_H
+

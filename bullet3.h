@@ -10,10 +10,11 @@ public:
 
     Bullet3(const QPointF &startPos,
             const QPointF &targetPos,
-            qreal speed = 16.0,
-            qreal maxDistance = 1600.0);
+            qreal speed = GameConfig::kCrystalBulletSpeed,
+            qreal maxDistance = GameConfig::kCrystalBulletDistance);
 
     int damage() const override;
 };
 
 #endif // BULLET3_H
+

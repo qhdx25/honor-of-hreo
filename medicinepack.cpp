@@ -1,22 +1,12 @@
 #include "medicinepack.h"
 
-#include "assetpaths.h"
-
-#include <QCoreApplication>
-#include <QDir>
-#include <QFileInfo>
 #include <QPainter>
 #include <QString>
 
 namespace {
 QString assetPath(const QString &fileName)
 {
-    const QString packagedPath = QDir(QCoreApplication::applicationDirPath()).filePath("res/" + fileName);
-    if (QFileInfo::exists(packagedPath)) {
-        return packagedPath;
-    }
-
-    return QString::fromUtf8(kSourceAssetDir) + "/" + fileName;
+    return QStringLiteral("D:/develop/Qtproject/honor-of-hero/res/") + fileName;
 }
 }
 

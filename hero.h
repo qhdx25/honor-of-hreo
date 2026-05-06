@@ -1,15 +1,16 @@
 #ifndef HERO_H
 #define HERO_H
 
+#include "config.h"
+
 #include <QPointF>
 
 class hero
 {
 public:
     hero();
-
-    void shoot();
-    QPointF shootOrigin() const;
+    void shoot();//射击
+    QPointF shootOrigin() const;//发射位置函数
     void setPosition(int x, int y);
     void updatePos(const QPointF &velocity, int gameWidth, int gameHeight);
     void resetState();
@@ -26,15 +27,14 @@ public:
     qreal experienceRatio() const;
     bool isMaxLevel() const;
     int unlockedSkillCount() const;
-
     int Hero_x;
     int Hero_y;
     int Hero_speed;
 
 private:
-    QPointF m_precisePosition;
-    int m_maxHp = 1000;
-    int m_hp = 1000;
+    QPointF m_precisePosition;//精确坐标
+    int m_maxHp = GameConfig::kHeroMaxHp;
+    int m_hp = GameConfig::kHeroMaxHp;
     int m_level = 1;
     int m_experience = 0;
 };

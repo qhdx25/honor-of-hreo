@@ -10,8 +10,8 @@ public:
 
     Skill2Bullet(const QPointF &startPos,
                  const QPointF &targetPos,
-                 qreal speed = 18.0,
-                 qreal maxDistance = 360.0);
+                 qreal speed = GameConfig::kSkill2BulletDefaultSpeed,
+                 qreal maxDistance = GameConfig::kSkill2BulletDefaultMaxDistance);
 
     int damage() const override;
 };

@@ -1,9 +1,5 @@
 #include "bullet.h"
-#include "assetpaths.h"
 
-#include <QCoreApplication>
-#include <QDir>
-#include <QFileInfo>
 #include <QLineF>
 #include <QPainter>
 #include <cmath>
@@ -11,18 +7,13 @@
 namespace {
 QString assetPath(const QString &fileName)
 {
-    const QString packagedPath = QDir(QCoreApplication::applicationDirPath()).filePath("res/" + fileName);
-    if (QFileInfo::exists(packagedPath)) {
-        return packagedPath;
-    }
-
-    return QString::fromUtf8(kSourceAssetDir) + "/" + fileName;
+    return QStringLiteral("D:/develop/Qtproject/honor-of-hero/res/") + fileName;
 }
 }
 
 QSize Bullet::defaultSize()
 {
-    return QSize(76, 76);
+    return QSize(GameConfig::kBulletDefaultWidth, GameConfig::kBulletDefaultHeight);
 }
 
 Bullet::Bullet(const QPointF &startPos,
@@ -71,7 +62,7 @@ void Bullet::update()
 
 int Bullet::damage() const
 {
-    return 25;
+    return GameConfig::kBulletDefaultDamage;
 }
 
 void Bullet::paint(QPainter &painter) const

@@ -1,29 +1,18 @@
 #include "boomerangbullet.h"
-#include "assetpaths.h"
-
-#include <QCoreApplication>
-#include <QDir>
-#include <QFileInfo>
 #include <QLineF>
 #include <QPainter>
 #include <QtGlobal>
 #include <cmath>
-
 namespace {
 QString assetPath(const QString &fileName)
 {
-    const QString packagedPath = QDir(QCoreApplication::applicationDirPath()).filePath("res/" + fileName);
-    if (QFileInfo::exists(packagedPath)) {
-        return packagedPath;
-    }
-
-    return QString::fromUtf8(kSourceAssetDir) + "/" + fileName;
+    return QStringLiteral("D:/develop/Qtproject/honor-of-hero/res/") + fileName;
 }
 }
-
+//返回回旋镖默认大小
 QSize BoomerangBullet::defaultSize()
 {
-    return QSize(176, 176);
+    return QSize(GameConfig::kBoomerangBulletWidth, GameConfig::kBoomerangBulletHeight);
 }
 
 BoomerangBullet::BoomerangBullet(const QPointF &startPos,
@@ -56,7 +45,7 @@ void BoomerangBullet::update()
     if (m_finished) {
         return;
     }
-
+// ===================== 阶段1：向外飞 =====================
     if (!m_returning) {
         m_pos += m_velocity;
         m_distanceTraveled += std::hypot(m_velocity.x(), m_velocity.y());
@@ -64,12 +53,12 @@ void BoomerangBullet::update()
             m_returning = true;
         }
     }
-
+// ===================== 阶段2：往回飞 =====================
     if (m_returning) {
         const QPointF returnTarget = m_returnTargetProvider ? m_returnTargetProvider() : m_pos;
         const QLineF line(m_pos, returnTarget);
         const qreal length = line.length();
-        if (length <= m_speed || length <= 1.0) {
+        if (length <= m_speed || length <= GameConfig::kBoomerangReturnArriveDistance) {
             m_pos = returnTarget;
             m_finished = true;
         } else {
@@ -79,13 +68,13 @@ void BoomerangBullet::update()
             m_pos += m_velocity;
         }
     }
-
-    m_rotationDegrees = std::fmod(m_rotationDegrees + 30.0, 360.0);
+//旋转动画
+    m_rotationDegrees = std::fmod(m_rotationDegrees + GameConfig::kBoomerangRotationStepDegrees, 360.0);
 }
 
 int BoomerangBullet::damage() const
 {
-    return 55;
+    return GameConfig::kBoomerangBulletDamage;
 }
 
 void BoomerangBullet::paint(QPainter &painter) const

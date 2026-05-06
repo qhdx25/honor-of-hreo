@@ -2,13 +2,10 @@
 #define BOOMERANGBULLET_H
 
 #include "bullet.h"
-
 #include <QSet>
 #include <functional>
-
 class Enemy;
-
-class BoomerangBullet : public Bullet
+class BoomerangBullet : public Bullet//继承自Bullet类
 {
 public:
     static QSize defaultSize();
@@ -16,8 +13,8 @@ public:
     BoomerangBullet(const QPointF &startPos,
                     const QPointF &targetPos,
                     std::function<QPointF()> returnTargetProvider,
-                    qreal speed = 20.0,
-                    qreal maxDistance = 900.0);
+                    qreal speed = GameConfig::kBoomerangBulletDefaultSpeed,
+                    qreal maxDistance = GameConfig::kBoomerangBulletDefaultMaxDistance);
 
     void update() override;
     int damage() const override;
@@ -34,12 +31,12 @@ private:
     QPointF m_velocity;
     QPixmap m_pixmap;
     QSize m_size;
-    std::function<QPointF()> m_returnTargetProvider;
+    std::function<QPointF()> m_returnTargetProvider;//飞回来时追踪的目标
     QSet<const Enemy *> m_outboundHitEnemies;
     QSet<const Enemy *> m_returnHitEnemies;
-    qreal m_speed = 20.0;
+    qreal m_speed = GameConfig::kBoomerangBulletDefaultSpeed;
     qreal m_distanceTraveled = 0.0;
-    qreal m_maxDistance = 900.0;
+    qreal m_maxDistance = GameConfig::kBoomerangBulletDefaultMaxDistance;
     qreal m_rotationDegrees = 0.0;
     bool m_returning = false;
     bool m_finished = false;
